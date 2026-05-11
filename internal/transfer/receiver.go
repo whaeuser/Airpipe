@@ -2,6 +2,7 @@ package transfer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -136,6 +137,9 @@ func (r *Receiver) ReceiveFile(destDir string, progressFn func(received, total i
 	case MsgTypeSDPOffer:
 		peer, err := negotiateReceiver(context.Background(), r.conn, r.key, string(first.Payload))
 		if err != nil {
+			if errors.Is(err, ErrP2PFailed) {
+				return r.recvFile(r.wsReader(), destDir, progressFn, nil)
+			}
 			return "", fmt.Errorf("p2p negotiation: %w", err)
 		}
 		defer peer.Close()

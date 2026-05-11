@@ -3,6 +3,7 @@ package transfer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/sanyamgarg/airpipe/internal/crypto"
 	"github.com/sanyamgarg/airpipe/internal/p2p"
 )
+
+var ErrP2PFailed = errors.New("p2p failed, use ws fallback")
 
 const NegotiateTimeout = 15 * time.Second
 
@@ -136,7 +139,7 @@ func negotiateSender(ctx context.Context, conn *websocket.Conn, key []byte) (*p2
 				_ = peer.AddICECandidate(r.msg.Payload)
 			case MsgTypeP2PFail:
 				peer.Close()
-				return nil, fmt.Errorf("peer reported p2p failure: %s", string(r.msg.Payload))
+				return nil, ErrP2PFailed
 			}
 		case <-negCtx.Done():
 			peer.Close()
@@ -222,7 +225,7 @@ func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, of
 				p2pReady = true
 			case MsgTypeP2PFail:
 				peer.Close()
-				return nil, fmt.Errorf("peer reported p2p failure: %s", string(r.msg.Payload))
+				return nil, ErrP2PFailed
 			}
 		case <-negCtx.Done():
 			peer.Close()
