@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -42,6 +43,8 @@ type config struct {
 	rateLimitPerMin int
 	logFormat       string
 	maxUploadSize   int64
+	pushoverToken   string
+	pushoverUser    string
 }
 
 func loadConfig() config {
@@ -50,6 +53,8 @@ func loadConfig() config {
 		rateLimitPerMin: getenvInt("AIRPIPE_RATE_LIMIT_PER_MIN", 60),
 		logFormat:       getenv("AIRPIPE_LOG_FORMAT", "json"),
 		maxUploadSize:   int64(getenvInt("AIRPIPE_MAX_UPLOAD_MB", 500)) << 20,
+		pushoverToken:   os.Getenv("PUSHOVER_TOKEN"),
+		pushoverUser:    os.Getenv("PUSHOVER_USER"),
 	}
 	raw := strings.TrimSpace(os.Getenv("AIRPIPE_ALLOWED_ORIGINS"))
 	if raw == "" {
@@ -386,6 +391,20 @@ func (il *ipLimiter) allow(ip string) bool {
 	return lim.Allow()
 }
 
+func (s *server) pushover(message string) {
+	if s.cfg.pushoverToken == "" || s.cfg.pushoverUser == "" {
+		return
+	}
+	go func() {
+		http.PostForm("https://api.pushover.net/1/messages.json", url.Values{
+			"token":   {s.cfg.pushoverToken},
+			"user":    {s.cfg.pushoverUser},
+			"message": {message},
+			"title":   {"AirPipe"},
+		})
+	}()
+}
+
 func clientIP(r *http.Request) string {
 	if v := r.Header.Get("Cf-Connecting-Ip"); v != "" {
 		return v
@@ -464,6 +483,7 @@ func (s *server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	room := s.roomManager.GetOrCreateRoom(token)
+	isFirst := len(room.clients) == 0
 	if !room.AddClient(conn) {
 		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "room full"))
 		return
@@ -471,6 +491,9 @@ func (s *server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer room.RemoveClient(conn)
 
 	s.log.Info("client joined room", "token", shortToken(token), "ip", clientIP(r))
+	if isFirst {
+		s.pushover(fmt.Sprintf("P2P send started from %s", clientIP(r)))
+	}
 
 	for {
 		messageType, message, err := conn.ReadMessage()
@@ -515,6 +538,9 @@ func (s *server) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 		s.log.Error("store failed", "err", err)
 		http.Error(w, "storage failed", http.StatusInternalServerError)
 		return
+	}
+	if sf, ok := s.fileStore.Get(token); ok {
+		s.pushover(fmt.Sprintf("Mailbox send: %s (%.1f MB) from %s", sf.Filename, float64(sf.Size)/(1024*1024), clientIP(r)))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
