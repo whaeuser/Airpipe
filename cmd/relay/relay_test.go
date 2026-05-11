@@ -28,6 +28,7 @@ func newTestServer(t *testing.T) *server {
 		cfg: config{
 			allowAnyOrigin:  true,
 			rateLimitPerMin: 10000,
+			maxUploadSize:   500 << 20,
 		},
 		log:         log,
 		fileStore:   NewFileStore(ctx, log),
