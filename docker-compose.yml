@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     ports:
       - "8088:8080"
+    environment:
+      - AIRPIPE_ALLOWED_ORIGINS=https://pipe.nurdaheim.net,https://file.volt-logik.io
     labels:
       com.centurylinklabs.watchtower.enable: "false"
 
