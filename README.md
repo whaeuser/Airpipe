@@ -58,6 +58,12 @@ Or via Go:
 go install github.com/Sanyam-G/Airpipe/cmd/airpipe@latest
 ```
 
+Or download a pre-built binary from [Releases](https://github.com/whaeuser/Airpipe/releases) and symlink it:
+```bash
+chmod +x airpipe-linux-amd64
+ln -sf "$PWD/airpipe-linux-amd64" /usr/local/bin/airpipe
+```
+
 Self-update later: `airpipe update`. Linux + macOS, amd64 + arm64.
 
 ### Send
