@@ -86,8 +86,7 @@ func main() {
 	case "update":
 		err = cmdUpdate()
 	default:
-		fmt.Printf("Unknown command: %s\n", args[0])
-		os.Exit(1)
+		err = cmdSend(*relay, args)
 	}
 
 	if err != nil {
