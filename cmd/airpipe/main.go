@@ -400,7 +400,7 @@ func cmdUpdate() error {
 
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
-	url := fmt.Sprintf("https://github.com/Sanyam-G/Airpipe/releases/latest/download/airpipe-%s-%s", goos, goarch)
+	url := fmt.Sprintf("https://github.com/whaeuser/Airpipe/releases/latest/download/airpipe-%s-%s", goos, goarch)
 
 	fmt.Printf("  Downloading latest for %s/%s...\n", goos, goarch)
 
