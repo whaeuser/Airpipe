@@ -26,7 +26,7 @@ import (
 	"github.com/sanyamgarg/airpipe/internal/transfer"
 )
 
-const defaultRelay = "https://airpipe.sanyamgarg.com"
+const defaultRelay = "https://pipe.nurdaheim.net"
 
 // ANSI escape codes — orange brand (truecolor #FF4F00) matches landing/web aesthetic
 const (

@@ -41,6 +41,7 @@ type config struct {
 	allowAnyOrigin  bool
 	rateLimitPerMin int
 	logFormat       string
+	maxUploadSize   int64
 }
 
 func loadConfig() config {
@@ -48,6 +49,7 @@ func loadConfig() config {
 		port:            getenv("PORT", "8080"),
 		rateLimitPerMin: getenvInt("AIRPIPE_RATE_LIMIT_PER_MIN", 60),
 		logFormat:       getenv("AIRPIPE_LOG_FORMAT", "json"),
+		maxUploadSize:   int64(getenvInt("AIRPIPE_MAX_UPLOAD_MB", 500)) << 20,
 	}
 	raw := strings.TrimSpace(os.Getenv("AIRPIPE_ALLOWED_ORIGINS"))
 	if raw == "" {
@@ -92,10 +94,7 @@ func newLogger(format string) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, opts))
 }
 
-const (
-	maxUploadSize = 500 << 20
-	fileExpiry    = 10 * time.Minute
-)
+const fileExpiry = 10 * time.Minute
 
 var (
 	errTokenExists = errors.New("token already exists")
@@ -492,7 +491,7 @@ func (s *server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleUploadFile(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.maxUploadSize)
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -674,6 +673,7 @@ func main() {
 			"allowed_origins", cfg.allowedOrigins,
 			"allow_any_origin", cfg.allowAnyOrigin,
 			"rate_limit_per_min", cfg.rateLimitPerMin,
+			"max_upload_mb", cfg.maxUploadSize>>20,
 		)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("listen failed", "err", err)
