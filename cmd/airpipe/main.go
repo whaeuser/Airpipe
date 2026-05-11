@@ -396,7 +396,12 @@ func cmdDownload(relay string, args []string) error {
 }
 
 func latestTag() string {
-	resp, err := http.Get("https://api.github.com/repos/whaeuser/Airpipe/releases/latest")
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/whaeuser/Airpipe/releases/latest", nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("User-Agent", "airpipe-cli")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return ""
 	}
