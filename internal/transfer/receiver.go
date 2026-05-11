@@ -135,10 +135,10 @@ func (r *Receiver) ReceiveFile(destDir string, progressFn func(received, total i
 
 	switch first.Type {
 	case MsgTypeSDPOffer:
-		peer, err := negotiateReceiver(context.Background(), r.conn, r.key, string(first.Payload))
+		peer, chanReader, err := negotiateReceiver(context.Background(), r.conn, r.key, string(first.Payload))
 		if err != nil {
 			if errors.Is(err, ErrP2PFailed) {
-				return r.recvFile(r.wsReader(), destDir, progressFn, nil)
+				return r.recvFile(chanReader, destDir, progressFn, nil)
 			}
 			return "", fmt.Errorf("p2p negotiation: %w", err)
 		}

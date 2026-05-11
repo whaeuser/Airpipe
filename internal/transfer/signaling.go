@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -148,27 +149,28 @@ func negotiateSender(ctx context.Context, conn *websocket.Conn, key []byte) (*p2
 	}
 }
 
-func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, offerSDP string) (*p2p.Peer, error) {
+func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, offerSDP string) (*p2p.Peer, func() (Message, error), error) {
 	negCtx, cancel := context.WithTimeout(ctx, NegotiateTimeout)
-	defer cancel()
 
 	peer, err := p2p.NewPeer(p2p.RoleAnswerer, p2p.Config{})
 	if err != nil {
-		return nil, err
+		cancel()
+		return nil, nil, err
 	}
 
 	answer, err := peer.SetRemoteOffer(negCtx, offerSDP)
 	if err != nil {
 		peer.Close()
-		return nil, err
+		cancel()
+		return nil, nil, err
 	}
 	if err := writeSignalMsg(conn, key, NewSDPAnswerMessage(answer)); err != nil {
 		peer.Close()
-		return nil, err
+		cancel()
+		return nil, nil, err
 	}
 
 	stopCh := make(chan struct{})
-	defer close(stopCh)
 	reads := startWSReader(conn, key, stopCh)
 
 	trickleDone := make(chan struct{})
@@ -204,7 +206,8 @@ func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, of
 		if dcOpen && p2pReady {
 			cancel()
 			<-trickleDone
-			return peer, nil
+			close(stopCh)
+			return peer, nil, nil
 		}
 		select {
 		case <-openCh:
@@ -212,11 +215,15 @@ func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, of
 		case r, ok := <-reads:
 			if !ok {
 				peer.Close()
-				return nil, fmt.Errorf("signaling channel closed")
+				cancel()
+				close(stopCh)
+				return nil, nil, fmt.Errorf("signaling channel closed")
 			}
 			if r.err != nil {
 				peer.Close()
-				return nil, fmt.Errorf("read signal: %w", r.err)
+				cancel()
+				close(stopCh)
+				return nil, nil, fmt.Errorf("read signal: %w", r.err)
 			}
 			switch r.msg.Type {
 			case MsgTypeICECandidate:
@@ -225,11 +232,24 @@ func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, of
 				p2pReady = true
 			case MsgTypeP2PFail:
 				peer.Close()
-				return nil, ErrP2PFailed
+				cancel()
+				// Keep stopCh open so the reader goroutine stays alive.
+				// Return a reader backed by the existing channel so no messages are lost.
+				chanReader := func() (Message, error) {
+					conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
+					r, ok := <-reads
+					if !ok {
+						return Message{}, io.EOF
+					}
+					return r.msg, r.err
+				}
+				return nil, chanReader, ErrP2PFailed
 			}
 		case <-negCtx.Done():
 			peer.Close()
-			return nil, negCtx.Err()
+			cancel()
+			close(stopCh)
+			return nil, nil, negCtx.Err()
 		}
 	}
 }
