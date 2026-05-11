@@ -28,6 +28,8 @@ import (
 
 const defaultRelay = "https://pipe.nurdaheim.net"
 
+var buildVersion = "dev"
+
 // ANSI escape codes — orange brand (truecolor #FF4F00) matches landing/web aesthetic
 const (
 	colorBrand  = "\033[38;2;255;79;0m"
@@ -60,6 +62,7 @@ func main() {
 		fmt.Printf("       %sairpipe%s receive [dir]\n", colorBold, colorReset)
 		fmt.Printf("       %sairpipe%s download <WORD WORD WORD NN> [dir]\n", colorBold, colorReset)
 		fmt.Printf("       %sairpipe%s update\n", colorBold, colorReset)
+		fmt.Printf("       %sairpipe%s version\n", colorBold, colorReset)
 		os.Exit(1)
 	}
 
@@ -85,6 +88,8 @@ func main() {
 		err = cmdDownload(*relay, args[1:])
 	case "update":
 		err = cmdUpdate()
+	case "version":
+		fmt.Printf("airpipe %s%s%s\n", colorBold, buildVersion, colorReset)
 	default:
 		err = cmdSend(*relay, args)
 	}
@@ -396,21 +401,23 @@ func cmdDownload(relay string, args []string) error {
 }
 
 func latestTag() string {
-	req, err := http.NewRequest("GET", "https://api.github.com/repos/whaeuser/Airpipe/releases/latest", nil)
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := client.Get("https://github.com/whaeuser/Airpipe/releases/latest")
 	if err != nil {
 		return ""
 	}
-	req.Header.Set("User-Agent", "airpipe-cli")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return ""
+	resp.Body.Close()
+	loc := resp.Header.Get("Location")
+	// Location: https://github.com/whaeuser/Airpipe/releases/tag/v1.0.5
+	parts := strings.Split(loc, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
 	}
-	defer resp.Body.Close()
-	var result struct {
-		TagName string `json:"tag_name"`
-	}
-	json.NewDecoder(resp.Body).Decode(&result)
-	return result.TagName
+	return ""
 }
 
 func cmdUpdate() error {
