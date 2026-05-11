@@ -395,14 +395,33 @@ func cmdDownload(relay string, args []string) error {
 	return nil
 }
 
+func latestTag() string {
+	resp, err := http.Get("https://api.github.com/repos/whaeuser/Airpipe/releases/latest")
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	var result struct {
+		TagName string `json:"tag_name"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+	return result.TagName
+}
+
 func cmdUpdate() error {
 	banner("update")
 
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
+
+	tag := latestTag()
+	if tag != "" {
+		fmt.Printf("  Latest release: %s%s%s\n", colorBold, tag, colorReset)
+	}
+
 	url := fmt.Sprintf("https://github.com/whaeuser/Airpipe/releases/latest/download/airpipe-%s-%s", goos, goarch)
 
-	fmt.Printf("  Downloading latest for %s/%s...\n", goos, goarch)
+	fmt.Printf("  Downloading for %s/%s...\n", goos, goarch)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -462,7 +481,11 @@ func cmdUpdate() error {
 		}
 	}
 
-	fmt.Printf("  %s✓ Updated %s%s (%s)\n\n", colorGreen, execPath, colorReset, fmtBytes(int64(len(binary))))
+	versionStr := ""
+	if tag != "" {
+		versionStr = " " + tag
+	}
+	fmt.Printf("  %s✓ Updated%s%s  %s%s%s  %s(%s)%s\n\n", colorGreen, versionStr, colorReset, colorDim, execPath, colorReset, colorDim, fmtBytes(int64(len(binary))), colorReset)
 	return nil
 }
 
