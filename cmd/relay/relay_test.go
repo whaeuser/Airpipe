@@ -326,7 +326,7 @@ func TestOriginAllowlist(t *testing.T) {
 	}{
 		{"", true}, // CLI clients (no Origin header)
 		{"https://drop.volt-logik.io", true},
-		{"https://PIPE.NURDAHEIM.NET", true},
+		{"https://DROP.VOLT-LOGIK.IO", true}, // case-insensitive match
 		{"https://evil.example.com", false},
 		{"http://drop.volt-logik.io", false}, // scheme mismatch
 	}
