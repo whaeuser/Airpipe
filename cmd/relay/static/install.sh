@@ -10,7 +10,7 @@ case "$ARCH" in
     *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
-URL="https://github.com/Sanyam-G/Airpipe/releases/latest/download/airpipe-${OS}-${ARCH}"
+URL="https://github.com/whaeuser/Airpipe/releases/latest/download/airpipe-${OS}-${ARCH}"
 
 echo "Downloading airpipe for ${OS}-${ARCH}..."
 curl -sL "$URL" -o /tmp/airpipe
