@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -13,7 +12,7 @@ import (
 	"github.com/whaeuser/drop/internal/p2p"
 )
 
-var ErrP2PFailed = errors.New("p2p failed, use ws fallback")
+var ErrPeerP2PFail = errors.New("peer p2p fail")
 
 const NegotiateTimeout = 15 * time.Second
 
@@ -140,7 +139,7 @@ func negotiateSender(ctx context.Context, conn *websocket.Conn, key []byte) (*p2
 				_ = peer.AddICECandidate(r.msg.Payload)
 			case MsgTypeP2PFail:
 				peer.Close()
-				return nil, ErrP2PFailed
+				return nil, fmt.Errorf("peer reported p2p failure: %s", string(r.msg.Payload))
 			}
 		case <-negCtx.Done():
 			peer.Close()
@@ -149,28 +148,33 @@ func negotiateSender(ctx context.Context, conn *websocket.Conn, key []byte) (*p2
 	}
 }
 
-func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, offerSDP string) (*p2p.Peer, func() (Message, error), error) {
+func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, offerSDP string) (*p2p.Peer, msgReader, func(), error) {
 	negCtx, cancel := context.WithTimeout(ctx, NegotiateTimeout)
+	defer cancel()
 
 	peer, err := p2p.NewPeer(p2p.RoleAnswerer, p2p.Config{})
 	if err != nil {
-		cancel()
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	answer, err := peer.SetRemoteOffer(negCtx, offerSDP)
 	if err != nil {
 		peer.Close()
-		cancel()
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if err := writeSignalMsg(conn, key, NewSDPAnswerMessage(answer)); err != nil {
 		peer.Close()
-		cancel()
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	stopCh := make(chan struct{})
+	stopOnce := false
+	stopReader := func() {
+		if !stopOnce {
+			stopOnce = true
+			close(stopCh)
+		}
+	}
 	reads := startWSReader(conn, key, stopCh)
 
 	trickleDone := make(chan struct{})
@@ -198,16 +202,14 @@ func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, of
 		close(openCh)
 	}()
 
-	// Don't return until both the DC is open AND the sender has sent P2PReady.
-	// Returning early lets the caller spawn a second WS reader, which gorilla
-	// panics on.
+	// wait for DC open and P2PReady, returning early causes a gorilla two-reader panic
 	dcOpen, p2pReady := false, false
 	for {
 		if dcOpen && p2pReady {
 			cancel()
 			<-trickleDone
-			close(stopCh)
-			return peer, nil, nil
+			stopReader()
+			return peer, nil, nil, nil
 		}
 		select {
 		case <-openCh:
@@ -215,15 +217,12 @@ func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, of
 		case r, ok := <-reads:
 			if !ok {
 				peer.Close()
-				cancel()
-				close(stopCh)
-				return nil, nil, fmt.Errorf("signaling channel closed")
+				return nil, nil, nil, fmt.Errorf("signaling channel closed")
 			}
 			if r.err != nil {
 				peer.Close()
-				cancel()
-				close(stopCh)
-				return nil, nil, fmt.Errorf("read signal: %w", r.err)
+				stopReader()
+				return nil, nil, nil, fmt.Errorf("read signal: %w", r.err)
 			}
 			switch r.msg.Type {
 			case MsgTypeICECandidate:
@@ -232,24 +231,22 @@ func negotiateReceiver(ctx context.Context, conn *websocket.Conn, key []byte, of
 				p2pReady = true
 			case MsgTypeP2PFail:
 				peer.Close()
-				cancel()
-				// Keep stopCh open so the reader goroutine stays alive.
-				// Return a reader backed by the existing channel so no messages are lost.
-				chanReader := func() (Message, error) {
-					conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
-					r, ok := <-reads
-					if !ok {
-						return Message{}, io.EOF
-					}
-					return r.msg, r.err
-				}
-				return nil, chanReader, ErrP2PFailed
+				return nil, tailReader(reads), stopReader, ErrPeerP2PFail
 			}
 		case <-negCtx.Done():
+			// our timer fired before the sender's P2P_FAIL arrived, fall back to ws anyway
 			peer.Close()
-			cancel()
-			close(stopCh)
-			return nil, nil, negCtx.Err()
+			return nil, tailReader(reads), stopReader, ErrPeerP2PFail
 		}
+	}
+}
+
+func tailReader(reads <-chan wsRead) msgReader {
+	return func() (Message, error) {
+		r, ok := <-reads
+		if !ok {
+			return Message{}, fmt.Errorf("signaling channel closed")
+		}
+		return r.msg, r.err
 	}
 }
