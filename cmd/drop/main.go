@@ -26,7 +26,7 @@ import (
 	"github.com/whaeuser/drop/internal/transfer"
 )
 
-const defaultRelay = "https://pipe.nurdaheim.net"
+const defaultRelay = "https://drop.volt-logik.io"
 
 var buildVersion = "dev"
 

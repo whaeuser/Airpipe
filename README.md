@@ -4,7 +4,7 @@ Self-hosted file transfer with a passphrase that works anywhere. Files go peer-t
 
 ![demo](demo.gif)
 
-**Try it:** [pipe.nurdaheim.net](https://pipe.nurdaheim.net)
+**Try it:** [drop.volt-logik.io](https://drop.volt-logik.io)
 
 ## How it works in 30 seconds
 
@@ -79,7 +79,7 @@ drop update    # self-update to latest release
 
 ## Browser to browser, no install
 
-Open `pipe.nurdaheim.net/live`. Get a passphrase + QR. Receiver types the passphrase at the homepage in their browser. Both pair, sender drops a file. No CLI, no app, no account.
+Open `drop.volt-logik.io/live`. Get a passphrase + QR. Receiver types the passphrase at the homepage in their browser. Both pair, sender drops a file. No CLI, no app, no account.
 
 ## Encryption
 

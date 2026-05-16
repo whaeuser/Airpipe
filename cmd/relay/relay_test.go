@@ -316,7 +316,7 @@ func TestDownloadNotFound(t *testing.T) {
 func TestOriginAllowlist(t *testing.T) {
 	log := newTestLogger()
 	cfg := config{
-		allowedOrigins: []string{"https://pipe.nurdaheim.net"},
+		allowedOrigins: []string{"https://drop.volt-logik.io"},
 	}
 	check := originChecker(cfg, log)
 
@@ -325,10 +325,10 @@ func TestOriginAllowlist(t *testing.T) {
 		allow  bool
 	}{
 		{"", true}, // CLI clients (no Origin header)
-		{"https://pipe.nurdaheim.net", true},
+		{"https://drop.volt-logik.io", true},
 		{"https://PIPE.NURDAHEIM.NET", true},
 		{"https://evil.example.com", false},
-		{"http://pipe.nurdaheim.net", false}, // scheme mismatch
+		{"http://drop.volt-logik.io", false}, // scheme mismatch
 	}
 	for _, c := range cases {
 		r := httptest.NewRequest("GET", "/ws/x", nil)

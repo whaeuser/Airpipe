@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css?v=20260510b">
+<link rel="stylesheet" href="/static/style-light.css?v=20260516a">
+<script>(function(){var t=localStorage.getItem('drop-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light')})();</script>
 </head>
 <body>
 
@@ -16,6 +18,7 @@
   <div class="strip-cell brand"><a href="/">DROP</a></div>
   <div class="strip-cell spacer"></div>
   <div class="strip-cell status" id="ws-status"><span class="dot"></span>CONNECTING</div>
+  <button id="theme-toggle" class="strip-cell theme-toggle" aria-label="Toggle light/dark theme">◑ LIGHT</button>
   <a href="https://github.com/whaeuser/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
 </header>
 
@@ -23,7 +26,7 @@
 
   <section id="waiting" class="block">
     <h2>Share this passphrase</h2>
-    <p class="block-sub">Tell your receiver. They type it at <code id="phrase-domain">pipe.nurdaheim.net</code>, scan the QR, or run <code>drop download &lt;passphrase&gt;</code>. Both browsers pair, then you pick a file.</p>
+    <p class="block-sub">Tell your receiver. They type it at <code id="phrase-domain">drop.volt-logik.io</code>, scan the QR, or run <code>drop download &lt;passphrase&gt;</code>. Both browsers pair, then you pick a file.</p>
 
     <div class="phrase-display">
       <div class="phrase-words" id="phrase-display" onclick="copyPhrase()">-</div>
@@ -420,6 +423,18 @@ function sendWS(plaintext){
 }
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+(function(){
+  var btn=document.getElementById('theme-toggle');
+  function upd(){var l=document.documentElement.getAttribute('data-theme')==='light';btn.textContent=l?'◐ DARK':'◑ LIGHT';}
+  btn.addEventListener('click',function(){
+    var l=document.documentElement.getAttribute('data-theme')==='light';
+    if(l){document.documentElement.removeAttribute('data-theme');localStorage.setItem('drop-theme','dark');}
+    else{document.documentElement.setAttribute('data-theme','light');localStorage.setItem('drop-theme','light');}
+    upd();
+  });
+  upd();
+})();
 </script>
 </body>
 </html>

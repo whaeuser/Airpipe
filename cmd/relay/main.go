@@ -59,6 +59,7 @@ func loadConfig() config {
 	raw := strings.TrimSpace(os.Getenv("DROP_ALLOWED_ORIGINS"))
 	if raw == "" {
 		c.allowedOrigins = []string{
+			"https://drop.volt-logik.io",
 			"https://pipe.nurdaheim.net",
 			"http://localhost:8080",
 			"http://127.0.0.1:8080",
@@ -422,6 +423,13 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
+func framePolicy(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self' https://volt-logik.io https://drop.volt-logik.io https://pipe.nurdaheim.net")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func rateLimit(il *ipLimiter, log *slog.Logger, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := clientIP(r)
@@ -688,7 +696,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.port,
-		Handler:           mux,
+		Handler:           framePolicy(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

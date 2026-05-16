@@ -7,13 +7,15 @@
 <meta name="description" content="Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.">
 <meta property="og:title" content="Drop">
 <meta property="og:description" content="Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.">
-<meta property="og:url" content="https://pipe.nurdaheim.net">
+<meta property="og:url" content="https://drop.volt-logik.io">
 <meta property="og:type" content="website">
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20260510a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css?v=20260511b">
+<link rel="stylesheet" href="/static/style-light.css?v=20260516a">
+<script>(function(){var t=localStorage.getItem('drop-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light')})();</script>
 </head>
 <body class="landing-body">
 
@@ -21,6 +23,7 @@
   <div class="strip-cell brand"><a href="/">DROP</a></div>
   <div class="strip-cell spacer"></div>
   <div class="strip-cell status live"><span class="dot"></span>RELAY ONLINE</div>
+  <button id="theme-toggle" class="strip-cell theme-toggle" aria-label="Toggle light/dark theme">◑ LIGHT</button>
   <a href="https://github.com/whaeuser/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
 </header>
 
@@ -146,6 +149,18 @@ async function submitPhrase(){
   location.href='/d/'+hexEncode(t.slice(0,8))+'#'+b64urlEncode(k);
 }
 $('phrase-input').addEventListener('keydown',(e)=>{if(e.key==='Enter')submitPhrase()});
+
+(function(){
+  var btn=$('theme-toggle');
+  function upd(){var l=document.documentElement.getAttribute('data-theme')==='light';btn.textContent=l?'◐ DARK':'◑ LIGHT';}
+  btn.addEventListener('click',function(){
+    var l=document.documentElement.getAttribute('data-theme')==='light';
+    if(l){document.documentElement.removeAttribute('data-theme');localStorage.setItem('drop-theme','dark');}
+    else{document.documentElement.setAttribute('data-theme','light');localStorage.setItem('drop-theme','light');}
+    upd();
+  });
+  upd();
+})();
 
 function copyCode(el){
   const text=el.querySelector('code').textContent.trim();

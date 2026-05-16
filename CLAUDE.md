@@ -15,7 +15,7 @@ docker compose build && docker compose up -d  # rebuild and restart relay on :80
 
 ## Deployment (whaeuser fork)
 
-This is a fork of the original project, customised for self-hosting on `pipe.nurdaheim.net`.
+This is a fork of the original project, customised for self-hosting on `drop.volt-logik.io` (alias: `pipe.nurdaheim.net`).
 
 - **Relay:** runs in Docker on port 8088, reverse-proxied via the host
 - **CLI binary:** `/usr/local/bin/drop` → symlink to `/root/Airpipe/drop-linux-amd64`
@@ -34,7 +34,7 @@ drop update   # on each machine
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8080` | Listen port inside container |
-| `DROP_ALLOWED_ORIGINS` | (pipe.nurdaheim.net + localhost) | Comma-separated CORS allowlist, or `*` |
+| `DROP_ALLOWED_ORIGINS` | (drop.volt-logik.io + pipe.nurdaheim.net + localhost) | Comma-separated CORS allowlist, or `*` |
 | `DROP_RATE_LIMIT_PER_MIN` | `60` | WebSocket + upload rate limit per IP |
 | `DROP_LOG_FORMAT` | `json` | `json` or `text` |
 | `DROP_MAX_UPLOAD_MB` | `500` | Mailbox upload size limit in MB |
