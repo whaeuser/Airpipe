@@ -1,4 +1,4 @@
-module github.com/sanyamgarg/airpipe
+module github.com/whaeuser/airpipe
 
 go 1.25.0
 

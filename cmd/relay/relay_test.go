@@ -316,7 +316,7 @@ func TestDownloadNotFound(t *testing.T) {
 func TestOriginAllowlist(t *testing.T) {
 	log := newTestLogger()
 	cfg := config{
-		allowedOrigins: []string{"https://airpipe.sanyamgarg.com"},
+		allowedOrigins: []string{"https://pipe.nurdaheim.net"},
 	}
 	check := originChecker(cfg, log)
 
@@ -325,10 +325,10 @@ func TestOriginAllowlist(t *testing.T) {
 		allow  bool
 	}{
 		{"", true}, // CLI clients (no Origin header)
-		{"https://airpipe.sanyamgarg.com", true},
-		{"https://AIRPIPE.SANYAMGARG.COM", true},
+		{"https://pipe.nurdaheim.net", true},
+		{"https://PIPE.NURDAHEIM.NET", true},
 		{"https://evil.example.com", false},
-		{"http://airpipe.sanyamgarg.com", false}, // scheme mismatch
+		{"http://pipe.nurdaheim.net", false}, // scheme mismatch
 	}
 	for _, c := range cases {
 		r := httptest.NewRequest("GET", "/ws/x", nil)

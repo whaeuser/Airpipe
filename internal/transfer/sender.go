@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/sanyamgarg/airpipe/internal/crypto"
+	"github.com/whaeuser/airpipe/internal/crypto"
 )
 
 const ChunkSize = 64 * 1024

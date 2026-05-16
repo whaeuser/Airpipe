@@ -19,11 +19,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sanyamgarg/airpipe/internal/archive"
-	"github.com/sanyamgarg/airpipe/internal/crypto"
-	"github.com/sanyamgarg/airpipe/internal/passphrase"
-	"github.com/sanyamgarg/airpipe/internal/qr"
-	"github.com/sanyamgarg/airpipe/internal/transfer"
+	"github.com/whaeuser/airpipe/internal/archive"
+	"github.com/whaeuser/airpipe/internal/crypto"
+	"github.com/whaeuser/airpipe/internal/passphrase"
+	"github.com/whaeuser/airpipe/internal/qr"
+	"github.com/whaeuser/airpipe/internal/transfer"
 )
 
 const defaultRelay = "https://pipe.nurdaheim.net"

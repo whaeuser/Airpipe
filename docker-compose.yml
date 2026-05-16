@@ -1,7 +1,7 @@
 services:
   relay:
     build: .
-    image: ghcr.io/sanyam-g/airpipe-relay:latest
+    image: airpipe-relay:local
     container_name: airpipe-relay
     restart: unless-stopped
     ports:

@@ -34,7 +34,7 @@ airpipe update   # on each machine
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8080` | Listen port inside container |
-| `AIRPIPE_ALLOWED_ORIGINS` | (sanyamgarg.com + localhost) | Comma-separated CORS allowlist, or `*` |
+| `AIRPIPE_ALLOWED_ORIGINS` | (pipe.nurdaheim.net + localhost) | Comma-separated CORS allowlist, or `*` |
 | `AIRPIPE_RATE_LIMIT_PER_MIN` | `60` | WebSocket + upload rate limit per IP |
 | `AIRPIPE_LOG_FORMAT` | `json` | `json` or `text` |
 | `AIRPIPE_MAX_UPLOAD_MB` | `500` | Mailbox upload size limit in MB |
@@ -45,7 +45,7 @@ Pushover notifications fire on every mailbox upload and every new P2P room (firs
 
 ## Architecture
 
-Two binaries share one module (`github.com/sanyamgarg/airpipe`):
+Two binaries share one module (`github.com/whaeuser/airpipe`):
 
 **`cmd/relay`** — the server. Single Go HTTP process that:
 - Brokers WebSocket signaling rooms (`/ws/{token}`) used for WebRTC negotiation and fallback WS streaming
