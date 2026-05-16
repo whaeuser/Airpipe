@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Receive live · Drop</title>
+<title data-i18n="title_live_recv">Receive live · Drop</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20260510a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/static/style.css?v=20260510b">
 <link rel="stylesheet" href="/static/style-light.css?v=20260516a">
 <script>(function(){var t=localStorage.getItem('drop-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light')})();</script>
+<script src="/static/i18n.js?v=20260516b"></script>
 </head>
 <body>
 
@@ -25,25 +26,25 @@
 <main class="grid single">
 
   <section id="joining" class="block">
-    <h2>Joining</h2>
-    <p class="block-sub">Connecting to the relay. Once paired with the sender, we negotiate a direct connection and receive the file.</p>
+    <h2 data-i18n="joining_h2">Joining</h2>
+    <p class="block-sub" data-i18n="joining_sub">Connecting to the relay. Once paired with the sender, we negotiate a direct connection and receive the file.</p>
     <div class="dots"><span></span><span></span><span></span></div>
   </section>
 
   <section id="waiting" class="block hidden">
-    <h2>Waiting for the sender</h2>
-    <p class="block-sub">You're paired. As soon as they pick a file, the connection starts and bytes begin streaming.</p>
+    <h2 data-i18n="waiting_paired_h2">Waiting for the sender</h2>
+    <p class="block-sub" data-i18n="waiting_paired_sub">You're paired. As soon as they pick a file, the connection starts and bytes begin streaming.</p>
     <div class="dots"><span></span><span></span><span></span></div>
   </section>
 
   <section id="negotiating" class="block hidden">
-    <h2>Connecting</h2>
-    <p class="block-sub">Negotiating a direct WebRTC link. The relay only sees ciphertext signaling.</p>
+    <h2 data-i18n="negotiating_h2">Connecting</h2>
+    <p class="block-sub" data-i18n="negotiating_sub">Negotiating a direct WebRTC link. The relay only sees ciphertext signaling.</p>
     <div class="dots"><span></span><span></span><span></span></div>
   </section>
 
   <section id="receiving" class="block hidden">
-    <h2>Receiving</h2>
+    <h2 data-i18n="receiving_h2">Receiving</h2>
     <div class="transport" id="transport"></div>
     <div class="filename" id="filename">-</div>
     <div class="size-info" id="recv-size"></div>
@@ -56,23 +57,23 @@
 
   <section id="complete" class="block hidden">
     <div class="checkmark">✓</div>
-    <h2 style="color:var(--accent)">Transfer complete</h2>
+    <h2 style="color:var(--accent)" data-i18n="complete_h2">Transfer complete</h2>
     <div class="transport" id="done-transport"></div>
     <div class="filename" id="done-name">-</div>
     <div class="size-info" id="done-size"></div>
-    <p class="block-sub">If the download didn't trigger automatically, your browser may have blocked it.</p>
+    <p class="block-sub" data-i18n="complete_recv_sub">If the download didn't trigger automatically, your browser may have blocked it.</p>
   </section>
 
   <section id="error" class="block hidden">
-    <h2 style="color:var(--accent)">Error</h2>
+    <h2 style="color:var(--accent)" data-i18n="error_h2">Error</h2>
     <div class="filename" id="errmsg">-</div>
-    <p class="block-sub">Reload to try again.</p>
+    <p class="block-sub" data-i18n="error_retry">Reload to try again.</p>
   </section>
 
 </main>
 
 <footer class="bottom-strip">
-  <span class="strip-cell">End-to-end encrypted</span>
+  <span class="strip-cell" data-i18n="footer_enc">End-to-end encrypted</span>
   <span class="spacer"></span>
   <span class="strip-cell"><a href="/">Home</a></span>
 </footer>
@@ -155,13 +156,13 @@ function showError(msg){
 
 const token=location.pathname.split('/').pop();
 const keyHash=location.hash.slice(1);
-if(!token||!keyHash){showError('Invalid link');throw''}
+if(!token||!keyHash){showError(t('js_invalid_link'));throw''}
 
 let keyBytes;
 try{
   keyBytes=b64decode(keyHash);
   if(keyBytes.length!==32)throw'';
-}catch(e){showError('Invalid encryption key');throw e}
+}catch(e){showError(t('js_invalid_key'));throw e}
 
 let ws, pc=null, dc=null;
 let phase='joining';
@@ -178,7 +179,7 @@ ws.binaryType='arraybuffer';
 ws.onopen=()=>{
   const s=$('ws-status');
   s.classList.remove('err');s.classList.add('live');
-  s.innerHTML='<span class="dot"></span>RELAY ONLINE';
+  s.innerHTML='<span class="dot"></span>'+t('relay_online');
   // announce presence to sender
   ws.send(encrypt(encode(MSG_PEER_JOIN,new Uint8Array(0)),keyBytes));
   phase='waiting';
@@ -188,13 +189,13 @@ ws.onopen=()=>{
 ws.onerror=()=>{
   const s=$('ws-status');
   s.classList.remove('live');s.classList.add('err');
-  s.innerHTML='<span class="dot"></span>RELAY OFFLINE';
-  showError('Connection to relay lost. Reload to retry.');
+  s.innerHTML='<span class="dot"></span>'+t('relay_offline');
+  showError(t('js_relay_lost'));
 };
 
 ws.onclose=()=>{
   if(phase==='negotiating'||phase==='receiving'){
-    showError('Connection closed during '+phase+'. Sender may have disconnected.');
+    showError(t('js_closed_sender',{phase}));
   }
 };
 
@@ -213,7 +214,7 @@ ws.onmessage=async(evt)=>{
       await answerOffer(new TextDecoder().decode(msg.payload));
     }catch(e){
       console.warn('answer offer failed:',e);
-      showError('Failed to negotiate peer connection: '+(e.message||e));
+      showError(t('js_negotiate_fail',{msg:e.message||e}));
     }
     return;
   }
@@ -230,7 +231,7 @@ ws.onmessage=async(evt)=>{
     if(pc){try{pc.close()}catch(_){}pc=null;dc=null}
     phase='receiving';
     show('receiving');
-    $('transport').textContent='via relay · P2P unavailable';
+    $('transport').textContent=t('js_p2p_unavail');
     startTime=performance.now();
     return;
   }
@@ -261,7 +262,7 @@ async function answerOffer(offerSDP){
   pc.onconnectionstatechange=()=>{
     if(pc&&(pc.connectionState==='failed'||pc.connectionState==='disconnected')){
       if(phase==='receiving'&&transport==='p2p'){
-        showError('Peer connection dropped during transfer.');
+        showError(t('js_peer_dropped'));
       }
     }
   };
@@ -270,7 +271,7 @@ async function answerOffer(offerSDP){
     transport='p2p';
     phase='receiving';
     show('receiving');
-    $('transport').textContent='direct · WebRTC DataChannel';
+    $('transport').textContent=t('js_direct_dc');
     startTime=performance.now();
   };
 
@@ -294,7 +295,7 @@ function handleDataMessage(msg){
     try{
       metadata=JSON.parse(new TextDecoder().decode(msg.payload));
     }catch(e){
-      showError('Bad metadata from sender');
+      showError(t('js_bad_meta'));
       return;
     }
     $('filename').textContent=metadata.filename;
@@ -324,14 +325,14 @@ function handleDataMessage(msg){
     return;
   }
   if(msg.type===MSG_ERROR){
-    showError('Sender reported: '+new TextDecoder().decode(msg.payload));
+    showError(t('js_sender_rep',{msg:new TextDecoder().decode(msg.payload)}));
     return;
   }
 }
 
 function finishTransfer(){
   if(!metadata){
-    showError('Transfer ended without metadata');
+    showError(t('js_no_meta'));
     return;
   }
   const blob=new Blob(chunks);
@@ -344,7 +345,7 @@ function finishTransfer(){
   phase='complete';
   $('done-name').textContent=metadata.filename;
   $('done-size').textContent=formatSize(metadata.size);
-  $('done-transport').textContent=transport==='p2p'?'direct · WebRTC':'via relay';
+  $('done-transport').textContent=transport==='p2p'?t('js_webrtc'):t('js_via_relay');
   show('complete');
 
   // let sender know we're done via WS close
@@ -353,7 +354,7 @@ function finishTransfer(){
 
 (function(){
   var btn=document.getElementById('theme-toggle');
-  function upd(){var l=document.documentElement.getAttribute('data-theme')==='light';btn.textContent=l?'◐ DARK':'◑ LIGHT';}
+  function upd(){var l=document.documentElement.getAttribute('data-theme')==='light';btn.textContent=l?t('theme_dark'):t('theme_light');}
   btn.addEventListener('click',function(){
     var l=document.documentElement.getAttribute('data-theme')==='light';
     if(l){document.documentElement.removeAttribute('data-theme');localStorage.setItem('drop-theme','dark');}

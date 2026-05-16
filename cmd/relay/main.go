@@ -425,7 +425,7 @@ func clientIP(r *http.Request) string {
 
 func framePolicy(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self' https://volt-logik.io https://drop.volt-logik.io https://pipe.nurdaheim.net")
+		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self' https://volt-logik.io https://*.volt-logik.io https://pipe.nurdaheim.net")
 		next.ServeHTTP(w, r)
 	})
 }

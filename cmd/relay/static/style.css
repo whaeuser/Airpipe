@@ -1230,3 +1230,7 @@ input[type=file] { display: none; }
   .host-clean { padding: 32px 20px 48px; }
 }
 
+
+/* iframe-Einbettung: Header und Footer ausblenden */
+html.embedded .top-strip,
+html.embedded .bottom-strip { display: none; }

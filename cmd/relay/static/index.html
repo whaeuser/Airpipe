@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Drop · encrypted file transfer, peer-to-peer</title>
+<title data-i18n="title_index">Drop · encrypted file transfer, peer-to-peer</title>
 <meta name="description" content="Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.">
 <meta property="og:title" content="Drop">
 <meta property="og:description" content="Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.">
@@ -16,13 +16,14 @@
 <link rel="stylesheet" href="/static/style.css?v=20260511b">
 <link rel="stylesheet" href="/static/style-light.css?v=20260516a">
 <script>(function(){var t=localStorage.getItem('drop-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light')})();</script>
+<script src="/static/i18n.js?v=20260516b"></script>
 </head>
 <body class="landing-body">
 
 <header class="top-strip">
   <div class="strip-cell brand"><a href="/">DROP</a></div>
   <div class="strip-cell spacer"></div>
-  <div class="strip-cell status live"><span class="dot"></span>RELAY ONLINE</div>
+  <div class="strip-cell status live"><span class="dot"></span><span data-i18n="relay_online">RELAY ONLINE</span></div>
   <button id="theme-toggle" class="strip-cell theme-toggle" aria-label="Toggle light/dark theme">◑ LIGHT</button>
   <a href="https://github.com/whaeuser/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
 </header>
@@ -30,15 +31,15 @@
 <main class="hero-clean">
   <div class="hero-text">
     <h1 class="hero-mark">DROP</h1>
-    <p class="hero-line">Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.</p>
+    <p class="hero-line" data-i18n="hero_line">Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.</p>
 
     <div class="hero-cta">
-      <a href="/live" class="cta cta-primary">Send a file <span class="arrow">→</span></a>
-      <a href="/send" class="cta-link">or upload to a 10-min mailbox</a>
+      <a href="/live" class="cta cta-primary"><span data-i18n="cta_send">Send a file</span> <span class="arrow">→</span></a>
+      <a href="/send" class="cta-link" data-i18n="cta_mailbox">or upload to a 10-min mailbox</a>
     </div>
 
     <div class="hero-receive">
-      <label for="phrase-input">Got a passphrase?</label>
+      <label for="phrase-input" data-i18n="phrase_label">Got a passphrase?</label>
       <div class="hero-phrase">
         <input type="text" id="phrase-input" class="phrase-input" placeholder="RIVER FALCON MARBLE 42" autocomplete="off" spellcheck="false">
         <button class="phrase-go" onclick="submitPhrase()">↵</button>
@@ -71,7 +72,7 @@
       <path d="M 740 200 Q 680 130 570 90" fill="none" stroke="#ECE6DC" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.4"/>
 
       <!-- subtle "encrypted signaling" label above direct line -->
-      <text x="500" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#5A534A" letter-spacing="2">encrypted signaling</text>
+      <text x="500" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#5A534A" letter-spacing="2" data-i18n="svg_signaling">encrypted signaling</text>
 
       <!-- left device card (sender) -->
       <g class="d-device">
@@ -115,14 +116,14 @@
       </circle>
 
       <!-- label below direct line -->
-      <text x="500" y="270" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" fill="#ECE6DC" font-weight="500">your bytes go direct</text>
+      <text x="500" y="270" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" fill="#ECE6DC" font-weight="500" data-i18n="svg_direct">your bytes go direct</text>
     </svg>
-    <p class="how-line">The relay only ever sees encrypted signaling, never your file.</p>
+    <p class="how-line" data-i18n="how_line">The relay only ever sees encrypted signaling, never your file.</p>
   </div>
 </main>
 
 <footer class="bottom-strip">
-  <span class="strip-cell">End-to-end encrypted</span>
+  <span class="strip-cell" data-i18n="footer_enc">End-to-end encrypted</span>
   <span class="spacer"></span>
   <span class="strip-cell"><a href="https://github.com/whaeuser/Airpipe" target="_blank" rel="noopener">Source</a></span>
 </footer>
@@ -143,7 +144,7 @@ function b64urlEncode(bytes){
 async function submitPhrase(){
   const errEl=$('phrase-error');errEl.textContent='';
   const phrase=normalize($('phrase-input').value);
-  if(!phrase||phrase.length<5){errEl.textContent='enter the passphrase';return}
+  if(!phrase||phrase.length<5){errEl.textContent=t('js_phrase_err');return}
   const t=await sha256('drop:token:'+phrase);
   const k=await sha256('drop:key:'+phrase);
   location.href='/d/'+hexEncode(t.slice(0,8))+'#'+b64urlEncode(k);
@@ -152,7 +153,7 @@ $('phrase-input').addEventListener('keydown',(e)=>{if(e.key==='Enter')submitPhra
 
 (function(){
   var btn=$('theme-toggle');
-  function upd(){var l=document.documentElement.getAttribute('data-theme')==='light';btn.textContent=l?'◐ DARK':'◑ LIGHT';}
+  function upd(){var l=document.documentElement.getAttribute('data-theme')==='light';btn.textContent=l?t('theme_dark'):t('theme_light');}
   btn.addEventListener('click',function(){
     var l=document.documentElement.getAttribute('data-theme')==='light';
     if(l){document.documentElement.removeAttribute('data-theme');localStorage.setItem('drop-theme','dark');}
