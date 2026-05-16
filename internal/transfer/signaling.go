@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/whaeuser/airpipe/internal/crypto"
-	"github.com/whaeuser/airpipe/internal/p2p"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/p2p"
 )
 
 var ErrP2PFailed = errors.New("p2p failed, use ws fallback")

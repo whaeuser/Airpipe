@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/whaeuser/airpipe/internal/crypto"
-	"github.com/whaeuser/airpipe/internal/transfer"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/transfer"
 )
 
 // Minimal relay that broadcasts between two clients in a room.

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/whaeuser/airpipe/internal/transfer"
+	"github.com/whaeuser/drop/internal/transfer"
 	"golang.org/x/time/rate"
 )
 
@@ -50,13 +50,13 @@ type config struct {
 func loadConfig() config {
 	c := config{
 		port:            getenv("PORT", "8080"),
-		rateLimitPerMin: getenvInt("AIRPIPE_RATE_LIMIT_PER_MIN", 60),
-		logFormat:       getenv("AIRPIPE_LOG_FORMAT", "json"),
-		maxUploadSize:   int64(getenvInt("AIRPIPE_MAX_UPLOAD_MB", 500)) << 20,
+		rateLimitPerMin: getenvInt("DROP_RATE_LIMIT_PER_MIN", 60),
+		logFormat:       getenv("DROP_LOG_FORMAT", "json"),
+		maxUploadSize:   int64(getenvInt("DROP_MAX_UPLOAD_MB", 500)) << 20,
 		pushoverToken:   os.Getenv("PUSHOVER_TOKEN"),
 		pushoverUser:    os.Getenv("PUSHOVER_USER"),
 	}
-	raw := strings.TrimSpace(os.Getenv("AIRPIPE_ALLOWED_ORIGINS"))
+	raw := strings.TrimSpace(os.Getenv("DROP_ALLOWED_ORIGINS"))
 	if raw == "" {
 		c.allowedOrigins = []string{
 			"https://pipe.nurdaheim.net",
@@ -123,7 +123,7 @@ type FileStore struct {
 }
 
 func NewFileStore(parent context.Context, log *slog.Logger) *FileStore {
-	dir, err := os.MkdirTemp("", "airpipe-*")
+	dir, err := os.MkdirTemp("", "drop-*")
 	if err != nil {
 		log.Error("create temp dir failed", "err", err)
 		os.Exit(1)
@@ -400,7 +400,7 @@ func (s *server) pushover(message string) {
 			"token":   {s.cfg.pushoverToken},
 			"user":    {s.cfg.pushoverUser},
 			"message": {message},
-			"title":   {"AirPipe"},
+			"title":   {"Drop"},
 		})
 	}()
 }

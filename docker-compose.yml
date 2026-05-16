@@ -1,14 +1,14 @@
 services:
   relay:
     build: .
-    image: airpipe-relay:local
-    container_name: airpipe-relay
+    image: drop-relay:local
+    container_name: drop-relay
     restart: unless-stopped
     ports:
       - "8088:8080"
     environment:
-      - AIRPIPE_ALLOWED_ORIGINS=https://pipe.nurdaheim.net,https://file.volt-logik.io
-      - AIRPIPE_MAX_UPLOAD_MB=500
+      - DROP_ALLOWED_ORIGINS=https://pipe.nurdaheim.net,https://file.volt-logik.io
+      - DROP_MAX_UPLOAD_MB=500
       - PUSHOVER_TOKEN=${PUSHOVER_TOKEN}
       - PUSHOVER_USER=${PUSHOVER_USER}
     labels:

@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AirPipe · encrypted file transfer, peer-to-peer</title>
+<title>Drop · encrypted file transfer, peer-to-peer</title>
 <meta name="description" content="Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.">
-<meta property="og:title" content="AirPipe">
+<meta property="og:title" content="Drop">
 <meta property="og:description" content="Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.">
 <meta property="og:url" content="https://pipe.nurdaheim.net">
 <meta property="og:type" content="website">
@@ -18,7 +18,7 @@
 <body class="landing-body">
 
 <header class="top-strip">
-  <div class="strip-cell brand"><a href="/">AIRPIPE</a></div>
+  <div class="strip-cell brand"><a href="/">DROP</a></div>
   <div class="strip-cell spacer"></div>
   <div class="strip-cell status live"><span class="dot"></span>RELAY ONLINE</div>
   <a href="https://github.com/whaeuser/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
@@ -26,7 +26,7 @@
 
 <main class="hero-clean">
   <div class="hero-text">
-    <h1 class="hero-mark">AIRPIPE</h1>
+    <h1 class="hero-mark">DROP</h1>
     <p class="hero-line">Send a file to anyone, peer-to-peer through your browser. Encrypted. Self-hostable.</p>
 
     <div class="hero-cta">
@@ -141,8 +141,8 @@ async function submitPhrase(){
   const errEl=$('phrase-error');errEl.textContent='';
   const phrase=normalize($('phrase-input').value);
   if(!phrase||phrase.length<5){errEl.textContent='enter the passphrase';return}
-  const t=await sha256('airpipe:token:'+phrase);
-  const k=await sha256('airpipe:key:'+phrase);
+  const t=await sha256('drop:token:'+phrase);
+  const k=await sha256('drop:key:'+phrase);
   location.href='/d/'+hexEncode(t.slice(0,8))+'#'+b64urlEncode(k);
 }
 $('phrase-input').addEventListener('keydown',(e)=>{if(e.key==='Enter')submitPhrase()});

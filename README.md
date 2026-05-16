@@ -1,4 +1,4 @@
-# AirPipe
+# Drop
 
 Self-hosted file transfer with a passphrase that works anywhere. Files go peer-to-peer between any two devices. The relay never sees your bytes.
 
@@ -9,7 +9,7 @@ Self-hosted file transfer with a passphrase that works anywhere. Files go peer-t
 ## How it works in 30 seconds
 
 1. Sender picks a file. Gets a passphrase like `RIVER FALCON MARBLE 42`.
-2. Receiver types it at the homepage, runs `airpipe download <PHRASE>`, or scans the QR.
+2. Receiver types it at the homepage, runs `drop download <PHRASE>`, or scans the QR.
 3. Both pair through the relay, then the file streams directly between them over WebRTC.
 4. If the receiver isn't online yet, the sender can pick "mailbox" mode instead. The relay holds the encrypted file for 10 minutes.
 
@@ -30,51 +30,51 @@ Env vars to tune things (set in `docker-compose.yml` or `.env`):
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8080` | Listen port inside container |
-| `AIRPIPE_ALLOWED_ORIGINS` | localhost | Comma-separated CORS allowlist, or `*` |
-| `AIRPIPE_RATE_LIMIT_PER_MIN` | `60` | Rate limit per IP |
-| `AIRPIPE_LOG_FORMAT` | `json` | `json` or `text` |
-| `AIRPIPE_MAX_UPLOAD_MB` | `500` | Mailbox upload size limit |
+| `DROP_ALLOWED_ORIGINS` | localhost | Comma-separated CORS allowlist, or `*` |
+| `DROP_RATE_LIMIT_PER_MIN` | `60` | Rate limit per IP |
+| `DROP_LOG_FORMAT` | `json` | `json` or `text` |
+| `DROP_MAX_UPLOAD_MB` | `500` | Mailbox upload size limit |
 | `PUSHOVER_TOKEN` / `PUSHOVER_USER` | — | Optional Pushover notifications on every send |
 
 ## CLI
 
 Install via curl (auto-detects OS and architecture):
 ```bash
-curl -sSL https://github.com/whaeuser/Airpipe/releases/latest/download/airpipe-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') -o /tmp/airpipe && chmod +x /tmp/airpipe && sudo mv /tmp/airpipe /usr/local/bin/airpipe
+curl -sSL https://github.com/whaeuser/Airpipe/releases/latest/download/drop-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') -o /tmp/drop && chmod +x /tmp/drop && sudo mv /tmp/drop /usr/local/bin/drop
 ```
 
-Self-update later: `airpipe update`. Linux + macOS, amd64 + arm64.
+Self-update later: `drop update`. Linux + macOS, amd64 + arm64.
 
 ### Send
 
 ```bash
-airpipe report.pdf
+drop report.pdf
 ```
-Or explicitly: `airpipe send report.pdf`. You get a prompt: direct (P2P) or mailbox (relay holds it 10 min). The CLI shows a passphrase, a QR, and a link.
+Or explicitly: `drop send report.pdf`. You get a prompt: direct (P2P) or mailbox (relay holds it 10 min). The CLI shows a passphrase, a QR, and a link.
 
 Multiple files or a folder get auto-zipped:
 ```bash
-airpipe file1.txt photos/
+drop file1.txt photos/
 ```
 
 ### Download
 
 ```bash
-airpipe download RIVER FALCON MARBLE 42
+drop download RIVER FALCON MARBLE 42
 ```
 
 ### Wait for someone to send to you
 
 ```bash
-airpipe receive ./downloads
+drop receive ./downloads
 ```
 Prints a QR. Phone scans it, drops a file, the file lands in `./downloads`. Direct WebRTC, fallback to relay if NAT punching fails.
 
 ### Version / update
 
 ```bash
-airpipe version   # show installed version
-airpipe update    # self-update to latest release
+drop version   # show installed version
+drop update    # self-update to latest release
 ```
 
 ## Browser to browser, no install

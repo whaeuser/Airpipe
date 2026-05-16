@@ -37,12 +37,12 @@ func Normalize(phrase string) string {
 // DeriveToken returns a 16-char hex token derived from the passphrase.
 // Uses SHA-256 with a domain-separated prefix, takes the first 8 bytes.
 func DeriveToken(phrase string) string {
-	h := sha256.Sum256([]byte("airpipe:token:" + Normalize(phrase)))
+	h := sha256.Sum256([]byte("drop:token:" + Normalize(phrase)))
 	return hex.EncodeToString(h[:8])
 }
 
 // DeriveKey returns a 32-byte NaCl secretbox key derived from the passphrase.
 // Uses SHA-256 with a domain-separated prefix.
 func DeriveKey(phrase string) [32]byte {
-	return sha256.Sum256([]byte("airpipe:key:" + Normalize(phrase)))
+	return sha256.Sum256([]byte("drop:key:" + Normalize(phrase)))
 }

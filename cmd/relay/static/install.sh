@@ -10,20 +10,20 @@ case "$ARCH" in
     *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
-URL="https://github.com/whaeuser/Airpipe/releases/latest/download/airpipe-${OS}-${ARCH}"
+URL="https://github.com/whaeuser/Airpipe/releases/latest/download/drop-${OS}-${ARCH}"
 
-echo "Downloading airpipe for ${OS}-${ARCH}..."
-curl -sL "$URL" -o /tmp/airpipe
-chmod +x /tmp/airpipe
+echo "Downloading drop for ${OS}-${ARCH}..."
+curl -sL "$URL" -o /tmp/drop
+chmod +x /tmp/drop
 
 # Install to /usr/local/bin, use sudo if needed
 if [ -w /usr/local/bin ]; then
-    mv /tmp/airpipe /usr/local/bin/airpipe
-    echo "Installed to /usr/local/bin/airpipe"
+    mv /tmp/drop /usr/local/bin/drop
+    echo "Installed to /usr/local/bin/drop"
 else
     echo "Need sudo to install to /usr/local/bin"
-    sudo mv /tmp/airpipe /usr/local/bin/airpipe
-    echo "Installed to /usr/local/bin/airpipe"
+    sudo mv /tmp/drop /usr/local/bin/drop
+    echo "Installed to /usr/local/bin/drop"
 fi
 
-echo "Done! Run: airpipe send <file>"
+echo "Done! Run: drop send <file>"

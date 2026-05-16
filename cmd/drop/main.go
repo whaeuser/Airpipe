@@ -19,11 +19,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whaeuser/airpipe/internal/archive"
-	"github.com/whaeuser/airpipe/internal/crypto"
-	"github.com/whaeuser/airpipe/internal/passphrase"
-	"github.com/whaeuser/airpipe/internal/qr"
-	"github.com/whaeuser/airpipe/internal/transfer"
+	"github.com/whaeuser/drop/internal/archive"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/passphrase"
+	"github.com/whaeuser/drop/internal/qr"
+	"github.com/whaeuser/drop/internal/transfer"
 )
 
 const defaultRelay = "https://pipe.nurdaheim.net"
@@ -50,19 +50,19 @@ func banner(mode string) {
 
 func main() {
 	defaultRelayURL := defaultRelay
-	if env := strings.TrimSpace(os.Getenv("AIRPIPE_RELAY")); env != "" {
+	if env := strings.TrimSpace(os.Getenv("DROP_RELAY")); env != "" {
 		defaultRelayURL = env
 	}
-	relay := flag.String("relay", defaultRelayURL, "Relay server URL (or set AIRPIPE_RELAY)")
+	relay := flag.String("relay", defaultRelayURL, "Relay server URL (or set DROP_RELAY)")
 	flag.Parse()
 	args := flag.Args()
 
 	if len(args) < 1 {
-		fmt.Printf("Usage: %sairpipe%s send <file> [file2...]\n", colorBold, colorReset)
-		fmt.Printf("       %sairpipe%s receive [dir]\n", colorBold, colorReset)
-		fmt.Printf("       %sairpipe%s download <WORD WORD WORD NN> [dir]\n", colorBold, colorReset)
-		fmt.Printf("       %sairpipe%s update\n", colorBold, colorReset)
-		fmt.Printf("       %sairpipe%s version\n", colorBold, colorReset)
+		fmt.Printf("Usage: %sdrop%s send <file> [file2...]\n", colorBold, colorReset)
+		fmt.Printf("       %sdrop%s receive [dir]\n", colorBold, colorReset)
+		fmt.Printf("       %sdrop%s download <WORD WORD WORD NN> [dir]\n", colorBold, colorReset)
+		fmt.Printf("       %sdrop%s update\n", colorBold, colorReset)
+		fmt.Printf("       %sdrop%s version\n", colorBold, colorReset)
 		os.Exit(1)
 	}
 
@@ -70,7 +70,7 @@ func main() {
 	switch args[0] {
 	case "send":
 		if len(args) < 2 {
-			fmt.Println("Usage: airpipe send [--mode p2p|mailbox] <file> [file2...]")
+			fmt.Println("Usage: drop send [--mode p2p|mailbox] <file> [file2...]")
 			os.Exit(1)
 		}
 		err = cmdSend(*relay, args[1:])
@@ -82,14 +82,14 @@ func main() {
 		err = cmdReceive(*relay, dir)
 	case "download":
 		if len(args) < 2 {
-			fmt.Println("Usage: airpipe download <WORD WORD WORD NN> [dir]")
+			fmt.Println("Usage: drop download <WORD WORD WORD NN> [dir]")
 			os.Exit(1)
 		}
 		err = cmdDownload(*relay, args[1:])
 	case "update":
 		err = cmdUpdate()
 	case "version":
-		fmt.Printf("airpipe %s%s%s\n", colorBold, buildVersion, colorReset)
+		fmt.Printf("drop %s%s%s\n", colorBold, buildVersion, colorReset)
 	default:
 		err = cmdSend(*relay, args)
 	}
@@ -108,7 +108,7 @@ func cmdSend(relay string, args []string) error {
 	}
 	files := sendFS.Args()
 	if len(files) == 0 {
-		return fmt.Errorf("usage: airpipe send [--mode p2p|mailbox] <file> [file2...]")
+		return fmt.Errorf("usage: drop send [--mode p2p|mailbox] <file> [file2...]")
 	}
 
 	for _, f := range files {
@@ -133,7 +133,7 @@ func cmdSend(relay string, args []string) error {
 		}
 		defer os.Remove(zipPath)
 		uploadPath = zipPath
-		filename = "airpipe-transfer.zip"
+		filename = "drop-transfer.zip"
 		stat, _ := os.Stat(zipPath)
 		fmt.Printf("\r  Zipped %d items %s✓%s  %s(%s)%s\n", len(files), colorGreen, colorReset, colorDim, fmtBytes(stat.Size()), colorReset)
 	} else {
@@ -260,7 +260,7 @@ func displayPassphrase(phrase, httpRelay, token string, key []byte) {
 	fmt.Printf("  %s%s║  %-40s║%s\n", colorBold, colorBrand, phrase, colorReset)
 	fmt.Printf("  %s%s╚══════════════════════════════════════════╝%s\n\n", colorBold, colorBrand, colorReset)
 	fmt.Printf("  Tell them: %s%s%s\n", colorBold, httpRelay, colorReset)
-	fmt.Printf("  Or run:    %sairpipe download %s%s\n\n", colorBold, phrase, colorReset)
+	fmt.Printf("  Or run:    %sdrop download %s%s\n\n", colorBold, phrase, colorReset)
 
 	url := fmt.Sprintf("%s/d/%s#%s", httpRelay, token, crypto.KeyToBase64(key))
 	qr.GenerateTerminal(url)
@@ -431,7 +431,7 @@ func cmdUpdate() error {
 		fmt.Printf("  Latest release: %s%s%s\n", colorBold, tag, colorReset)
 	}
 
-	url := fmt.Sprintf("https://github.com/whaeuser/Airpipe/releases/latest/download/airpipe-%s-%s", goos, goarch)
+	url := fmt.Sprintf("https://github.com/whaeuser/Airpipe/releases/latest/download/drop-%s-%s", goos, goarch)
 
 	fmt.Printf("  Downloading for %s/%s...\n", goos, goarch)
 
@@ -462,7 +462,7 @@ func cmdUpdate() error {
 	}
 
 	// Write new binary to /tmp
-	tmpPath := filepath.Join(os.TempDir(), "airpipe-update")
+	tmpPath := filepath.Join(os.TempDir(), "drop-update")
 	if err := os.WriteFile(tmpPath, binary, 0755); err != nil {
 		return fmt.Errorf("write to temp failed: %w", err)
 	}

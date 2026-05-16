@@ -34,9 +34,9 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
-        run: go build -ldflags "-X main.buildVersion=${{ github.ref_name }}" -o airpipe-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/airpipe
+        run: go build -ldflags "-X main.buildVersion=${{ github.ref_name }}" -o drop-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/drop
 
       - name: Upload release binary
         uses: softprops/action-gh-release@v2
         with:
-          files: airpipe-${{ matrix.goos }}-${{ matrix.goarch }}
+          files: drop-${{ matrix.goos }}-${{ matrix.goarch }}
