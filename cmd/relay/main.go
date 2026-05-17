@@ -696,6 +696,16 @@ func main() {
 	mux.HandleFunc("GET /live/{token}", s.handleLiveReceivePage)
 	mux.HandleFunc("GET /ws/{token}", rateLimit(s.rl, log, s.handleWebSocket))
 	mux.HandleFunc("GET /health", s.handleHealth)
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/static/favicon.svg", http.StatusFound)
+	})
+	mux.HandleFunc("GET /static/config.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		maxMB := cfg.maxUploadSize >> 20
+		expiryMin := int(cfg.fileExpiry.Minutes())
+		fmt.Fprintf(w, "window.DROP_MAX_MB=%d;window.DROP_EXPIRY_MIN=%d;\n", maxMB, expiryMin)
+	})
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.port,

@@ -8,6 +8,20 @@ services:
       - "8088:8080"
     environment:
       - DROP_ALLOWED_ORIGINS=https://drop.volt-logik.io,https://pipe.nurdaheim.net
+      - PUSHOVER_TOKEN=${PUSHOVER_TOKEN}
+      - PUSHOVER_USER=${PUSHOVER_USER}
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+
+  relay-internal:
+    build: .
+    image: drop-relay:local
+    container_name: drop-relay-internal
+    restart: unless-stopped
+    ports:
+      - "8089:8080"
+    environment:
+      - DROP_ALLOWED_ORIGINS=https://drop.internal.volt-logik.io,https://volt-logik.io,https://*.volt-logik.io
       - DROP_MAX_UPLOAD_MB=2048
       - DROP_FILE_EXPIRY_MIN=60
       - PUSHOVER_TOKEN=${PUSHOVER_TOKEN}
