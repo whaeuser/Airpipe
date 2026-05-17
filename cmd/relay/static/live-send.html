@@ -31,7 +31,7 @@
 
     <div class="phrase-display">
       <div class="phrase-words" id="phrase-display" onclick="copyPhrase()">-</div>
-      <div class="phrase-hint" data-i18n="phrase_hint">tap to copy</div>
+      <div class="phrase-hint" id="phrase-hint" data-i18n="phrase_hint">tap to copy</div>
     </div>
 
     <div class="qr-wrap" id="qr"></div>
@@ -207,7 +207,21 @@ function copyURL(){
   setTimeout(()=>badge.classList.remove('show'),1500);
 }
 function copyPhrase(){
-  navigator.clipboard.writeText(currentPhrase);
+  const hint=document.getElementById('phrase-hint');
+  const orig=hint.textContent;
+  hint.textContent='✓ kopiert';
+  setTimeout(()=>{hint.textContent=orig;},1500);
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(currentPhrase);
+    }else{
+      const ta=document.createElement('textarea');
+      ta.value=currentPhrase;ta.style.cssText='position:fixed;opacity:0';
+      document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy');}catch(e){}
+      document.body.removeChild(ta);
+    }
+  }catch(e){}
 }
 
 async function init(){
