@@ -1,5 +1,5 @@
 (function(){
-  if(window!==window.top)document.documentElement.classList.add('embedded');
+  if(window!==window.top){document.documentElement.classList.add('embedded');document.documentElement.setAttribute('data-theme','light');}
   var L=(navigator.language||(navigator.languages&&navigator.languages[0])||'en').toLowerCase();
   var lang=L.startsWith('de')?'de':'en';
   var _mb=window.DROP_MAX_MB||500;
