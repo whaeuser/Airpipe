@@ -43,6 +43,7 @@ type config struct {
 	rateLimitPerMin int
 	logFormat       string
 	maxUploadSize   int64
+	fileExpiry      time.Duration
 	pushoverToken   string
 	pushoverUser    string
 }
@@ -53,6 +54,7 @@ func loadConfig() config {
 		rateLimitPerMin: getenvInt("DROP_RATE_LIMIT_PER_MIN", 60),
 		logFormat:       getenv("DROP_LOG_FORMAT", "json"),
 		maxUploadSize:   int64(getenvInt("DROP_MAX_UPLOAD_MB", 500)) << 20,
+		fileExpiry:      time.Duration(getenvInt("DROP_FILE_EXPIRY_MIN", 10)) * time.Minute,
 		pushoverToken:   os.Getenv("PUSHOVER_TOKEN"),
 		pushoverUser:    os.Getenv("PUSHOVER_USER"),
 	}
@@ -100,7 +102,6 @@ func newLogger(format string) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, opts))
 }
 
-const fileExpiry = 10 * time.Minute
 
 var (
 	errTokenExists = errors.New("token already exists")
@@ -115,15 +116,16 @@ type StoredFile struct {
 }
 
 type FileStore struct {
-	mu     sync.RWMutex
-	files  map[string]*StoredFile
-	dir    string
-	log    *slog.Logger
-	ctx    context.Context
-	cancel context.CancelFunc
+	mu      sync.RWMutex
+	files   map[string]*StoredFile
+	dir     string
+	log     *slog.Logger
+	ctx     context.Context
+	cancel  context.CancelFunc
+	expiry  time.Duration
 }
 
-func NewFileStore(parent context.Context, log *slog.Logger) *FileStore {
+func NewFileStore(parent context.Context, log *slog.Logger, expiry time.Duration) *FileStore {
 	dir, err := os.MkdirTemp("", "drop-*")
 	if err != nil {
 		log.Error("create temp dir failed", "err", err)
@@ -136,6 +138,7 @@ func NewFileStore(parent context.Context, log *slog.Logger) *FileStore {
 		log:    log,
 		ctx:    ctx,
 		cancel: cancel,
+		expiry: expiry,
 	}
 	go fs.cleanupLoop()
 	return fs
@@ -204,7 +207,7 @@ func (fs *FileStore) cleanupLoop() {
 		case <-ticker.C:
 			fs.mu.Lock()
 			for token, f := range fs.files {
-				if time.Since(f.CreatedAt) > fileExpiry {
+				if time.Since(f.CreatedAt) > fs.expiry {
 					os.Remove(f.Path)
 					delete(fs.files, token)
 					fs.log.Info("file expired", "token", shortToken(token))
@@ -669,7 +672,7 @@ func main() {
 	s := &server{
 		cfg:         cfg,
 		log:         log,
-		fileStore:   NewFileStore(rootCtx, log),
+		fileStore:   NewFileStore(rootCtx, log, cfg.fileExpiry),
 		roomManager: NewRoomManager(rootCtx, log),
 		rl:          newIPLimiter(cfg.rateLimitPerMin),
 	}

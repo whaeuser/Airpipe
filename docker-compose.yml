@@ -8,7 +8,8 @@ services:
       - "8088:8080"
     environment:
       - DROP_ALLOWED_ORIGINS=https://drop.volt-logik.io,https://pipe.nurdaheim.net
-      - DROP_MAX_UPLOAD_MB=500
+      - DROP_MAX_UPLOAD_MB=2048
+      - DROP_FILE_EXPIRY_MIN=60
       - PUSHOVER_TOKEN=${PUSHOVER_TOKEN}
       - PUSHOVER_USER=${PUSHOVER_USER}
     labels:
