@@ -31,7 +31,7 @@ func newTestServer(t *testing.T) *server {
 			maxUploadSize:   500 << 20,
 		},
 		log:         log,
-		fileStore:   NewFileStore(ctx, log),
+		fileStore:   NewFileStore(ctx, log, 10*time.Minute),
 		roomManager: NewRoomManager(ctx, log),
 		rl:          newIPLimiter(10000),
 	}
@@ -193,7 +193,7 @@ func TestUploadPageEndpoint(t *testing.T) {
 }
 
 func TestFileStoreRoundtrip(t *testing.T) {
-	fs := NewFileStore(context.Background(), newTestLogger())
+	fs := NewFileStore(context.Background(), newTestLogger(), 10*time.Minute)
 	defer fs.Shutdown()
 	content := []byte("hello airpipe")
 
@@ -218,7 +218,7 @@ func TestFileStoreRoundtrip(t *testing.T) {
 }
 
 func TestFileStoreNotFound(t *testing.T) {
-	fs := NewFileStore(context.Background(), newTestLogger())
+	fs := NewFileStore(context.Background(), newTestLogger(), 10*time.Minute)
 	defer fs.Shutdown()
 	_, ok := fs.Get("nonexistent")
 	if ok {
