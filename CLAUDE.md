@@ -60,7 +60,7 @@ Bare file arguments are treated as implicit `send`: `drop file.txt` = `drop send
 
 ### Transfer flow
 
-1. Sender generates a passphrase (`WORD WORD WORD NN`).
+1. Sender generates a passphrase (`WORD WORD NN`).
 2. `passphrase.DeriveToken` → 16-char hex room token (SHA-256, domain-prefixed).
 3. `passphrase.DeriveKey` → 32-byte NaCl key (SHA-256, domain-prefixed). Key is separate from the token.
 4. **P2P path:** sender opens WS room, receiver joins, both negotiate via SDP/ICE messages. If WebRTC fails, sender sends `P2PFail` and both fall back to relay-proxied WS streaming. The receiver reuses the existing `startWSReader` channel on fallback to avoid losing the first metadata message.

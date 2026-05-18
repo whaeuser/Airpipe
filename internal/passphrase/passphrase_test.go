@@ -8,8 +8,8 @@ import (
 
 func TestGenerate(t *testing.T) {
 	phrase := Generate()
-	// Format: "WORD WORD WORD WORD NN"
-	pattern := regexp.MustCompile(`^[A-Z]+ [A-Z]+ [A-Z]+ [A-Z]+ \d{2}$`)
+	// Format: "WORD WORD NN"
+	pattern := regexp.MustCompile(`^[A-Z]+ [A-Z]+ \d{2}$`)
 	if !pattern.MatchString(phrase) {
 		t.Fatalf("Generate() = %q, doesn't match expected pattern", phrase)
 	}
