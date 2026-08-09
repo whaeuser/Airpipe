@@ -3,56 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Send to CLI · DROP</title>
+<title data-i18n="title_sender">Send to CLI · DROP</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20260510a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css?v=20260510b">
+<script src="/static/i18n.js?v=20260810a"></script>
 </head>
 <body>
 
 <header class="top-strip">
   <div class="strip-cell brand"><a href="/">DROP</a></div>
   <div class="strip-cell spacer"></div>
-  <div class="strip-cell status" id="ws-status"><span class="dot"></span>CONNECTING</div>
+  <div class="strip-cell status" id="ws-status"><span class="dot"></span><span data-i18n="connecting">CONNECTING</span></div>
   <a href="https://github.com/whaeuser/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
 </header>
 
 <main class="grid single">
 
   <section id="connecting" class="block">
-    <h2>Connecting</h2>
-    <p class="block-sub">Opening an encrypted link to the relay. Once paired with the CLI receiver, we attempt a direct WebRTC connection.</p>
+    <h2 data-i18n="s_connecting_h2">Connecting</h2>
+    <p class="block-sub" data-i18n="s_connecting_sub">Opening an encrypted link to the relay. Once paired with the CLI receiver, we attempt a direct WebRTC connection.</p>
     <div class="dots"><span></span><span></span><span></span></div>
   </section>
 
   <section id="select" class="block hidden">
-    <h2>Drop file(s)</h2>
-    <p class="block-sub">It encrypts in your browser before any bytes leave. The relay only ever sees ciphertext. Multiple files send in one connection.</p>
+    <h2 data-i18n="s_select_h2">Drop file(s)</h2>
+    <p class="block-sub" data-i18n="s_select_sub">It encrypts in your browser before any bytes leave. The relay only ever sees ciphertext. Multiple files send in one connection.</p>
     <div class="drop-zone" id="dropzone">
       <div class="drop-icon">+</div>
-      <div class="drop-label">tap to select or <strong>drop files</strong></div>
-      <div class="drop-hint">any type · any size</div>
+      <div class="drop-label" data-i18n-html="drop_label">tap to select or <strong>drop files</strong></div>
+      <div class="drop-hint" data-i18n="dropzone_hint_any">any type · any size</div>
     </div>
     <input type="file" id="fileinput" multiple>
   </section>
 
   <section id="preparing" class="block hidden">
-    <h2>Handshaking</h2>
+    <h2 data-i18n="s_handshake_h2">Handshaking</h2>
     <div class="filename" id="prep-name">-</div>
-    <p class="block-sub">Waiting for the receiver to be ready, then negotiating the WebRTC offer.</p>
+    <p class="block-sub" data-i18n="s_handshake_sub">Waiting for the receiver to be ready, then negotiating the WebRTC offer.</p>
     <div class="dots"><span></span><span></span><span></span></div>
   </section>
 
   <section id="negotiating" class="block hidden">
-    <h2>Connecting peer</h2>
-    <p class="block-sub">Attempting direct WebRTC. Falls back to streaming through the relay if NAT punching fails after 15 seconds.</p>
+    <h2 data-i18n="peer_h2">Connecting peer</h2>
+    <p class="block-sub" data-i18n="s_peer_sub">Attempting direct WebRTC. Falls back to streaming through the relay if NAT punching fails after 15 seconds.</p>
     <div class="dots"><span></span><span></span><span></span></div>
   </section>
 
   <section id="sending" class="block hidden">
-    <h2>Sending</h2>
+    <h2 data-i18n="sending_h2">Sending</h2>
     <div class="transport" id="transport"></div>
     <div class="filename" id="filename">-</div>
     <div class="size-info" id="send-size"></div>
@@ -65,35 +66,35 @@
 
   <section id="batch-done" class="block hidden">
     <div class="checkmark">✓</div>
-    <h2 style="color:var(--accent)">Batch sent</h2>
+    <h2 style="color:var(--accent)" data-i18n="batch_sent_h2">Batch sent</h2>
     <div class="transport" id="batch-done-transport"></div>
     <div class="filename" id="batch-done-name">-</div>
     <div class="size-info" id="batch-done-size"></div>
-    <p class="block-sub">Same secure link, send another batch whenever you’re ready.</p>
+    <p class="block-sub" data-i18n="batch_sent_sub">Same secure link, send another batch whenever you’re ready.</p>
     <div class="batch-actions">
-      <button type="button" class="cta cta-primary" id="send-more-btn">Send more files</button>
+      <button type="button" class="cta cta-primary" id="send-more-btn" data-i18n="send_more_btn">Send more files</button>
     </div>
   </section>
 
   <section id="complete" class="block hidden">
     <div class="checkmark">✓</div>
-    <h2 style="color:var(--accent)">Transfer complete</h2>
+    <h2 style="color:var(--accent)" data-i18n="complete_h2">Transfer complete</h2>
     <div class="transport" id="done-transport"></div>
     <div class="filename" id="done-name">-</div>
     <div class="size-info" id="done-size"></div>
   </section>
 
   <section id="error" class="block hidden">
-    <h2 style="color:var(--accent)">Error</h2>
+    <h2 style="color:var(--accent)" data-i18n="error_h2">Error</h2>
     <div class="filename" id="errmsg">-</div>
   </section>
 
 </main>
 
 <footer class="bottom-strip">
-  <span class="strip-cell">End-to-end encrypted</span>
+  <span class="strip-cell" data-i18n="footer_enc">End-to-end encrypted</span>
   <span class="spacer"></span>
-  <span class="strip-cell"><a href="/">Home</a></span>
+  <span class="strip-cell"><a href="/" data-i18n="footer_home">Home</a></span>
 </footer>
 
 <script src="/static/nacl-fast.min.js"></script>
@@ -104,13 +105,13 @@ const NEGOTIATE_TIMEOUT_MS=15000;
 
 const token=location.pathname.split('/').pop();
 const keyHash=location.hash.slice(1);
-if(!token||!keyHash){showError('Invalid link');throw''}
+if(!token||!keyHash){showError(t('js_invalid_link'));throw''}
 
 let keyBytes;
 try{
   keyBytes=b64decode(keyHash);
   if(keyBytes.length!==32)throw'';
-}catch(e){showError('Invalid encryption key');throw e}
+}catch(e){showError(t('js_invalid_key'));throw e}
 
 function $(id){return document.getElementById(id)}
 
@@ -171,20 +172,20 @@ ws.onopen=()=>{
   show('select');
   const s=$('ws-status');
   s.classList.remove('err');s.classList.add('live');
-  s.innerHTML='<span class="dot"></span>RELAY ONLINE';
+  s.innerHTML='<span class="dot"></span>'+t('relay_online');
 };
 ws.onerror=()=>{
   const s=$('ws-status');
   s.classList.remove('live');s.classList.add('err');
-  s.innerHTML='<span class="dot"></span>RELAY OFFLINE';
-  showError('Connection lost. Reload to retry.');
+  s.innerHTML='<span class="dot"></span>'+t('relay_offline');
+  showError(t('js_conn_lost'));
 };
 ws.onclose=()=>{
   if(phase==='batch-done'){
     return;
   }
   if(phase!=='connecting'&&phase!=='select'&&phase!=='complete'){
-    showError('Connection closed during transfer ('+phase+')');
+    showError(t('js_closed_transfer',{phase}));
   }
 };
 
@@ -208,7 +209,7 @@ dropzone.addEventListener('drop',(e)=>{
 async function sendFiles(fileList){
   const files=[...fileList];
   if(!files.length)return;
-  $('prep-name').textContent=files.length===1?files[0].name:(files.length+' files');
+  $('prep-name').textContent=files.length===1?files[0].name:t('js_files_n',{n:files.length});
 
   try{
     if(!transportReady){
@@ -232,17 +233,17 @@ async function sendFiles(fileList){
       phase='sending';
       show('sending');
       if(usingP2PMedia){
-        $('transport').textContent='direct · WebRTC DataChannel';
+        $('transport').textContent=t('js_direct_dc');
         ws.send(encrypt(encode(MSG_P2P_READY,new Uint8Array(0)),keyBytes));
       }else{
-        $('transport').textContent='via relay · P2P unavailable';
+        $('transport').textContent=t('js_p2p_unavail');
         ws.send(encrypt(encode(MSG_P2P_FAIL,new TextEncoder().encode('browser p2p failed')),keyBytes));
       }
       transportReady=true;
     }else{
       phase='sending';
       show('sending');
-      $('transport').textContent=usingP2PMedia?'direct · WebRTC DataChannel':'via relay · P2P unavailable';
+      $('transport').textContent=usingP2PMedia?t('js_direct_dc'):t('js_p2p_unavail');
     }
 
     const sendFn=usingP2PMedia?sendDC:sendWS;
@@ -263,9 +264,9 @@ async function sendFiles(fileList){
     await sendFn(encode(MSG_SESSION_END,new Uint8Array(0)));
 
     phase='batch-done';
-    $('batch-done-name').textContent=files.length===1?files[0].name:(String(files.length)+' files');
+    $('batch-done-name').textContent=files.length===1?files[0].name:t('js_files_n',{n:files.length});
     $('batch-done-size').textContent=formatSize(totalSent);
-    $('batch-done-transport').textContent=usingP2PMedia?'direct · WebRTC':'via relay';
+    $('batch-done-transport').textContent=usingP2PMedia?t('js_direct_webrtc'):t('js_via_relay');
     show('batch-done');
   }catch(err){
     showError(err.message||String(err));

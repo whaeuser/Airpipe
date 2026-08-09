@@ -60,7 +60,8 @@
     return line ? line.replace(/^[-*]\s+/, '').replace(/[*`]/g, '') : '';
   }
   function fmtDate(iso) {
-    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    const loc = window.DROP_LANG === 'de' ? 'de-DE' : 'en-US';
+    return new Date(iso).toLocaleDateString(loc, { year: 'numeric', month: 'short', day: 'numeric' });
   }
   function renderCompact(rels) {
     return rels.map(function (r) {
@@ -80,8 +81,8 @@
       const tag = r.tag_name || r.name || '';
       const title = r.name || tag;
       const date = fmtDate(r.published_at);
-      const latest = i === 0 ? '<span class="cl-latest">latest</span>' : '';
-      const body = r.body && r.body.trim() ? md(r.body) : '<p class="empty">Release notes pending.</p>';
+      const latest = i === 0 ? '<span class="cl-latest">' + t('js_latest') + '</span>' : '';
+      const body = r.body && r.body.trim() ? md(r.body) : '<p class="empty">' + t('js_release_notes_pending') + '</p>';
       return ''
         + '<article class="release">'
         +   '<aside class="release-tag">'
@@ -99,7 +100,7 @@
   const now = Date.now();
 
   function render(rels) {
-    if (!rels.length) { list.textContent = 'No releases yet.'; return; }
+    if (!rels.length) { list.textContent = t('js_no_releases'); return; }
     const shown = rels.slice(0, limit);
     list.innerHTML = isCompact ? renderCompact(shown) : renderFull(shown);
   }
@@ -117,7 +118,7 @@
     })
     .catch(function () {
       if (cached) { render(cached.r); return; }
-      list.innerHTML = 'Couldn’t load releases. <a href="https://github.com/whaeuser/Airpipe/releases" target="_blank" rel="noopener">View on GitHub</a>.';
+      list.innerHTML = t('js_releases_failed_html', { url: 'https://github.com/whaeuser/Airpipe/releases' });
     });
 })();
 
@@ -128,11 +129,11 @@
   const ver = document.getElementById('relay-version');
   function setOnline() {
     wrap.classList.remove('err');
-    if (text) text.textContent = 'RELAY ONLINE';
+    if (text) text.textContent = t('relay_online');
   }
   function setOffline() {
     wrap.classList.add('err');
-    if (text) text.textContent = 'RELAY OFFLINE';
+    if (text) text.textContent = t('relay_offline');
   }
   function check() {
     fetch('/health', { cache: 'no-store' })
@@ -154,7 +155,7 @@
   if (!window.isSecureContext) {
     const w = document.createElement('div');
     w.className = 'https-warn';
-    w.textContent = 'This page needs HTTPS (or localhost) to encrypt files. Put the relay behind a reverse proxy with TLS, or access it locally.';
+    w.textContent = t('js_https_required');
     document.body.prepend(w);
   }
 })();
@@ -194,12 +195,12 @@
   async function submit() {
     err.textContent = '';
     const p = norm(input.value);
-    if (!p || p.length < 5) { err.textContent = 'enter the passphrase'; return; }
+    if (!p || p.length < 5) { err.textContent = t('js_enter_passphrase'); return; }
     if (!crypto || !crypto.subtle) {
-      err.textContent = 'browser missing crypto.subtle (needs HTTPS or localhost)';
+      err.textContent = t('js_crypto_missing');
       return;
     }
-    const t = await sha256('drop:token:' + p);
+    const t2 = await sha256('drop:token:' + p);
     const k = await sha256('drop:key:' + p);
     const rt = await sha256('drop:receive-token:' + p);
     try {
@@ -209,7 +210,7 @@
         return;
       }
     } catch (e) {}
-    location.href = '/d/' + hex(t.slice(0, 8)) + '#' + b64url(k);
+    location.href = '/d/' + hex(t2.slice(0, 8)) + '#' + b64url(k);
   }
   go.addEventListener('click', submit);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
