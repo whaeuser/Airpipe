@@ -23,10 +23,11 @@ If the NATs are too strict to punch through, the transfer falls back to the rela
 ## Self-host
 
 ```bash
-docker run -p 8080:8080 drop-relay:local
+git clone https://github.com/whaeuser/Airpipe.git && cd Airpipe
+docker compose build && docker compose up -d
 ```
 
-One Go binary, ~15 MB image, bundling the web UI and install script. Or clone and `docker compose up -d` (ships an opt-in Watchtower auto-updater).
+One Go binary, ~15 MB image, bundling the web UI and install script.
 
 Point the CLI at your relay with `export DROP_RELAY=https://your-server.example` (or `--relay` per call). Tunables, all optional:
 
