@@ -16,6 +16,8 @@ type Config struct {
 	LogFormat       string
 	MaxUploadBytes  int64
 	FileExpiry      time.Duration
+	PushoverToken   string
+	PushoverUser    string
 }
 
 func LoadConfig() Config {
@@ -25,6 +27,8 @@ func LoadConfig() Config {
 		LogFormat:       getenv("DROP_LOG_FORMAT", "json"),
 		MaxUploadBytes:  int64(getenvInt("DROP_MAX_UPLOAD_MB", 500)) << 20,
 		FileExpiry:      getenvDuration("DROP_FILE_EXPIRY", 10*time.Minute),
+		PushoverToken:   os.Getenv("PUSHOVER_TOKEN"),
+		PushoverUser:    os.Getenv("PUSHOVER_USER"),
 	}
 	// Only needed for pages served from a different domain; same-origin is always allowed.
 	raw := strings.TrimSpace(os.Getenv("DROP_ALLOWED_ORIGINS"))

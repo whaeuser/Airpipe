@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -82,6 +84,22 @@ func (s *Server) Routes() http.Handler {
 	return mux
 }
 
+// pushover fires a best-effort push notification. Silently skipped if
+// PUSHOVER_TOKEN/PUSHOVER_USER aren't configured.
+func (s *Server) pushover(message string) {
+	if s.cfg.PushoverToken == "" || s.cfg.PushoverUser == "" {
+		return
+	}
+	go func() {
+		http.PostForm("https://api.pushover.net/1/messages.json", url.Values{
+			"token":   {s.cfg.PushoverToken},
+			"user":    {s.cfg.PushoverUser},
+			"message": {message},
+			"title":   {"Drop"},
+		})
+	}()
+}
+
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	token := r.PathValue("token")
 	if token == "" {
@@ -96,6 +114,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	room := s.roomManager.GetOrCreateRoom(token)
+	isFirst := len(room.clients) == 0
 	if !room.AddClient(conn) {
 		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "room full"))
 		return
@@ -104,6 +123,9 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	s.wsConnectionsTotal.Add(1)
 	s.log.Info("client joined room", "token", shortToken(token), "ip", clientIP(r))
+	if isFirst {
+		s.pushover(fmt.Sprintf("P2P send started from %s", clientIP(r)))
+	}
 
 	for {
 		messageType, message, err := conn.ReadMessage()
@@ -153,6 +175,7 @@ func (s *Server) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	if sf, ok := s.fileStore.Get(token); ok {
 		s.uploadsTotal.Add(1)
 		s.uploadBytesTotal.Add(sf.Size)
+		s.pushover(fmt.Sprintf("Mailbox send: %s (%.1f MB) from %s", sf.Filename, float64(sf.Size)/(1024*1024), clientIP(r)))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
