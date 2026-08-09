@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Send · AirPipe</title>
+<title>Send · DROP</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20260510a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,10 +13,10 @@
 <body>
 
 <header class="top-strip">
-  <div class="strip-cell brand"><a href="/">AIRPIPE</a></div>
+  <div class="strip-cell brand"><a href="/">DROP</a></div>
   <div class="strip-cell spacer"></div>
   <div class="strip-cell status live"><span class="dot"></span>RELAY ONLINE</div>
-  <a href="https://github.com/Sanyam-G/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
+  <a href="https://github.com/whaeuser/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
 </header>
 
 <main class="grid single">
@@ -52,7 +52,7 @@
 
   <section id="done" class="block hidden">
     <h2>Share this passphrase</h2>
-    <p class="block-sub">Tell your receiver. They type it at <code id="phrase-domain">airpipe.sanyamgarg.com</code>, scan the QR, or run <code>airpipe download &lt;passphrase&gt;</code>.</p>
+    <p class="block-sub">Tell your receiver. They type it at <code id="phrase-domain">drop.example.com</code>, scan the QR, or run <code>drop download &lt;passphrase&gt;</code>.</p>
 
     <div class="phrase-display">
       <div class="phrase-words" id="phrase-display" onclick="copyPhrase()">RIVER FALCON MARBLE 42</div>
@@ -83,8 +83,8 @@
 <script src="/static/nacl-fast.min.js"></script>
 <script src="/static/qrcode.min.js"></script>
 <script src="/static/words.js"></script>
-<script src="/static/airpipe-protocol.js"></script>
-<script src="/static/airpipe-mailbox.js"></script>
+<script src="/static/drop-protocol.js"></script>
+<script src="/static/drop-mailbox.js"></script>
 <script>
 if(!window.isSecureContext){
   const w=document.createElement('div');
@@ -150,7 +150,7 @@ function generatePassphrase(){
   const words=[];
   const arr=new Uint32Array(5);
   crypto.getRandomValues(arr);
-  for(let i=0;i<4;i++)words.push(AIRPIPE_WORDS[arr[i]%1024]);
+  for(let i=0;i<4;i++)words.push(DROP_WORDS[arr[i]%1024]);
   const num=10+(arr[4]%90);
   return words.join(' ')+' '+num;
 }
@@ -171,9 +171,9 @@ async function handleFiles(filesIn){
   try{
     currentPhrase=generatePassphrase();
     const normalized=currentPhrase.toUpperCase().trim().replace(/\s+/g,' ');
-    const tokenHash=await sha256('airpipe:token:'+normalized);
+    const tokenHash=await sha256('drop:token:'+normalized);
     const derivedToken=hexEncode(tokenHash.slice(0,8));
-    const keyBytes=await sha256('airpipe:key:'+normalized);
+    const keyBytes=await sha256('drop:key:'+normalized);
 
     show('encrypting');
     document.getElementById('enc-progress').style.width='10%';

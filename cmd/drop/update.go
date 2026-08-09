@@ -19,7 +19,7 @@ func cmdUpdate() error {
 	if goos == "windows" {
 		ext = ".exe"
 	}
-	url := fmt.Sprintf("https://github.com/Sanyam-G/Airpipe/releases/latest/download/airpipe-%s-%s%s", goos, goarch, ext)
+	url := fmt.Sprintf("https://github.com/whaeuser/Airpipe/releases/latest/download/drop-%s-%s%s", goos, goarch, ext)
 
 	fmt.Printf("  Current: %s%s%s\n", colorDim, buildVersion, colorReset)
 	fmt.Printf("  Downloading latest for %s/%s...\n", goos, goarch)
@@ -51,7 +51,7 @@ func cmdUpdate() error {
 	}
 
 	// Write new binary to /tmp
-	tmpPath := filepath.Join(os.TempDir(), "airpipe-update"+ext)
+	tmpPath := filepath.Join(os.TempDir(), "drop-update"+ext)
 	if err := os.WriteFile(tmpPath, binary, 0755); err != nil {
 		return fmt.Errorf("write to temp failed: %w", err)
 	}
@@ -73,7 +73,7 @@ func cmdUpdate() error {
 			os.Remove(tmpPath)
 		}
 		fmt.Printf("  %s✓ Updated %s%s (%s)\n", colorGreen, execPath, colorReset, fmtBytes(int64(len(binary))))
-		fmt.Printf("  %sDelete %s once no airpipe is running.%s\n\n", colorDim, old, colorReset)
+		fmt.Printf("  %sDelete %s once no drop is running.%s\n\n", colorDim, old, colorReset)
 		return nil
 	}
 

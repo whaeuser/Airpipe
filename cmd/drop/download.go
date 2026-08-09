@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sanyamgarg/airpipe/internal/crypto"
-	"github.com/sanyamgarg/airpipe/internal/mailbox"
-	"github.com/sanyamgarg/airpipe/internal/passphrase"
-	"github.com/sanyamgarg/airpipe/internal/transfer"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/mailbox"
+	"github.com/whaeuser/drop/internal/passphrase"
+	"github.com/whaeuser/drop/internal/transfer"
 )
 
 func cmdDownload(relay string, args []string) error {

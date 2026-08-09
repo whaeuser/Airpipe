@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Receive live · AirPipe</title>
+<title>Receive live · DROP</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20260510a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,10 +13,10 @@
 <body>
 
 <header class="top-strip">
-  <div class="strip-cell brand"><a href="/">AIRPIPE</a></div>
+  <div class="strip-cell brand"><a href="/">DROP</a></div>
   <div class="strip-cell spacer"></div>
   <div class="strip-cell status" id="ws-status"><span class="dot"></span>CONNECTING</div>
-  <a href="https://github.com/Sanyam-G/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
+  <a href="https://github.com/whaeuser/Airpipe" target="_blank" rel="noopener" class="strip-cell port-btn">GITHUB <span class="arrow">↗</span></a>
 </header>
 
 <main class="grid single">
@@ -87,7 +87,7 @@
 </footer>
 
 <script src="/static/nacl-fast.min.js"></script>
-<script src="/static/airpipe-protocol.js"></script>
+<script src="/static/drop-protocol.js"></script>
 <script>
 const NEGOTIATE_TIMEOUT_MS=15000;
 
@@ -237,7 +237,7 @@ ws.onmessage=async(evt)=>{
 
 async function answerOffer(offerSDP){
   pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
-  dc=pc.createDataChannel('airpipe',{ordered:true,id:1,negotiated:true});
+  dc=pc.createDataChannel('drop',{ordered:true,id:1,negotiated:true});
   dc.binaryType='arraybuffer';
 
   pc.onicecandidate=(evt)=>{

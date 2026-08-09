@@ -203,11 +203,11 @@ func TestMetricsEndpoint(t *testing.T) {
 	}
 	body := w.Body.String()
 	for _, want := range []string{
-		"airpipe_build_info",
-		"airpipe_uptime_seconds",
-		"airpipe_active_files",
-		"airpipe_uploads_total",
-		"airpipe_rate_limited_total",
+		"drop_build_info",
+		"drop_uptime_seconds",
+		"drop_active_files",
+		"drop_uploads_total",
+		"drop_rate_limited_total",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("metrics missing %s", want)
@@ -232,7 +232,7 @@ func TestUploadPageEndpoint(t *testing.T) {
 
 func TestFileStoreRoundtrip(t *testing.T) {
 	fs := newTestFileStore(t)
-	content := []byte("hello airpipe")
+	content := []byte("hello drop")
 
 	token, err := fs.Store("test.txt", bytes.NewReader(content), "")
 	if err != nil {
@@ -352,7 +352,7 @@ func TestDownloadNotFound(t *testing.T) {
 func TestOriginAllowlist(t *testing.T) {
 	log := newTestLogger()
 	cfg := Config{
-		AllowedOrigins: []string{"https://airpipe.sanyamgarg.com"},
+		AllowedOrigins: []string{"https://drop.example.com"},
 	}
 	check := originChecker(cfg, log)
 
@@ -361,10 +361,10 @@ func TestOriginAllowlist(t *testing.T) {
 		allow  bool
 	}{
 		{"", true}, // CLI clients (no Origin header)
-		{"https://airpipe.sanyamgarg.com", true},
-		{"https://AIRPIPE.SANYAMGARG.COM", true},
+		{"https://drop.example.com", true},
+		{"https://DROP.EXAMPLE.COM", true},
 		{"https://evil.example.com", false},
-		{"http://airpipe.sanyamgarg.com", false}, // scheme mismatch
+		{"http://drop.example.com", false}, // scheme mismatch
 		{"http://example.com", true},             // same-origin: matches request Host
 		{"http://localhost:8199", false},         // different host, not allowlisted
 	}
@@ -416,9 +416,9 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestConfigEnvOverrides(t *testing.T) {
-	t.Setenv("AIRPIPE_MAX_UPLOAD_MB", "100")
-	t.Setenv("AIRPIPE_FILE_EXPIRY", "30m")
-	t.Setenv("AIRPIPE_RATE_LIMIT_PER_MIN", "120")
+	t.Setenv("DROP_MAX_UPLOAD_MB", "100")
+	t.Setenv("DROP_FILE_EXPIRY", "30m")
+	t.Setenv("DROP_RATE_LIMIT_PER_MIN", "120")
 
 	cfg := LoadConfig()
 	if cfg.MaxUploadBytes != 100<<20 {
@@ -433,8 +433,8 @@ func TestConfigEnvOverrides(t *testing.T) {
 }
 
 func TestConfigBadEnvFallsBack(t *testing.T) {
-	t.Setenv("AIRPIPE_MAX_UPLOAD_MB", "not-a-number")
-	t.Setenv("AIRPIPE_FILE_EXPIRY", "-5m")
+	t.Setenv("DROP_MAX_UPLOAD_MB", "not-a-number")
+	t.Setenv("DROP_FILE_EXPIRY", "-5m")
 
 	cfg := LoadConfig()
 	if cfg.MaxUploadBytes != 500<<20 {

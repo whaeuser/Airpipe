@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/sanyamgarg/airpipe/internal/crypto"
-	"github.com/sanyamgarg/airpipe/internal/p2p"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/p2p"
 )
 
 func SafeFilename(raw string) (string, error) {
@@ -92,7 +92,7 @@ func (r *Receiver) Connect() error {
 		if len(versionMsg.Payload) > 0 {
 			got = versionMsg.Payload[0]
 		}
-		return fmt.Errorf("protocol version mismatch: got %d, expected %d (run `airpipe update`)", got, ProtocolVersion)
+		return fmt.Errorf("protocol version mismatch: got %d, expected %d (run `drop update`)", got, ProtocolVersion)
 	}
 	r.conn.SetReadDeadline(time.Time{})
 
@@ -309,7 +309,7 @@ func (r *Receiver) reHandshake(msg Message) error {
 		if len(msg.Payload) > 0 {
 			got = msg.Payload[0]
 		}
-		return fmt.Errorf("protocol version mismatch: got %d, expected %d (run `airpipe update`)", got, ProtocolVersion)
+		return fmt.Errorf("protocol version mismatch: got %d, expected %d (run `drop update`)", got, ProtocolVersion)
 	}
 	return writeSignalMsg(r.conn, r.key, NewReadyMessage())
 }

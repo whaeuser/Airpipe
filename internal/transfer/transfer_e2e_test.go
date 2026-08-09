@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/sanyamgarg/airpipe/internal/crypto"
-	"github.com/sanyamgarg/airpipe/internal/transfer"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/transfer"
 )
 
 // Minimal relay that broadcasts between two clients in a room.
@@ -92,7 +92,7 @@ func TestCLItoCLI(t *testing.T) {
 	// Create a test file
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "hello.txt")
-	content := []byte("hello from airpipe cli-to-cli test")
+	content := []byte("hello from drop cli-to-cli test")
 	if err := os.WriteFile(srcPath, content, 0644); err != nil {
 		t.Fatal(err)
 	}

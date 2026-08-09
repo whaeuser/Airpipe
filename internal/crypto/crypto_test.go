@@ -44,7 +44,7 @@ func TestKeyBase64Roundtrip(t *testing.T) {
 
 func TestEncryptDecryptRoundtrip(t *testing.T) {
 	key, _ := GenerateKey()
-	plaintext := []byte("hello airpipe")
+	plaintext := []byte("hello drop")
 
 	ciphertext, err := Encrypt(plaintext, key)
 	if err != nil {

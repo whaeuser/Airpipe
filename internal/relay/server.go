@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/sanyamgarg/airpipe/internal/transfer"
-	"github.com/sanyamgarg/airpipe/web"
+	"github.com/whaeuser/drop/internal/transfer"
+	"github.com/whaeuser/drop/web"
 )
 
 var validToken = regexp.MustCompile(`^[0-9a-f]{16}$`)

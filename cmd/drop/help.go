@@ -3,20 +3,20 @@ package main
 import "fmt"
 
 func printUsage() {
-	fmt.Printf("Usage: %sairpipe%s send [--stay-open] [--mode p2p|mailbox] <file> [file2...]\n", colorBold, colorReset)
-	fmt.Printf("       %sairpipe%s receive [--stay-open] [dir]\n", colorBold, colorReset)
-	fmt.Printf("       %sairpipe%s download [--stay-open] <WORD WORD WORD NN> [dir]\n", colorBold, colorReset)
-	fmt.Printf("       %sairpipe%s update\n", colorBold, colorReset)
-	fmt.Printf("       %sairpipe%s version\n", colorBold, colorReset)
-	fmt.Printf("       %sairpipe%s help\n\n", colorBold, colorReset)
-	fmt.Printf("Run %sairpipe help%s for details.\n", colorBold, colorReset)
+	fmt.Printf("Usage: %sdrop%s send [--stay-open] [--mode p2p|mailbox] <file> [file2...]\n", colorBold, colorReset)
+	fmt.Printf("       %sdrop%s receive [--stay-open] [dir]\n", colorBold, colorReset)
+	fmt.Printf("       %sdrop%s download [--stay-open] <WORD WORD WORD NN> [dir]\n", colorBold, colorReset)
+	fmt.Printf("       %sdrop%s update\n", colorBold, colorReset)
+	fmt.Printf("       %sdrop%s version\n", colorBold, colorReset)
+	fmt.Printf("       %sdrop%s help\n\n", colorBold, colorReset)
+	fmt.Printf("Run %sdrop help%s for details.\n", colorBold, colorReset)
 }
 
 func printHelp() {
 	b := colorBold
 	r := colorReset
 	d := colorDim
-	fmt.Printf("\n%sairpipe%s - peer-to-peer encrypted file transfer\n\n", b, r)
+	fmt.Printf("\n%sdrop%s - peer-to-peer encrypted file transfer\n\n", b, r)
 
 	fmt.Printf("%sCommands%s\n", b, r)
 	fmt.Printf("  %ssend%s [--stay-open] [--mode p2p|mailbox] <file> [file2...]\n", b, r)
@@ -51,17 +51,17 @@ func printHelp() {
 	fmt.Printf("%sFlags%s\n", b, r)
 	fmt.Printf("  %s--relay%s <origin>\n", b, r)
 	fmt.Printf("      Use a relay other than the default for this call.\n")
-	fmt.Printf("      Permanent: %sexport AIRPIPE_RELAY=https://your-relay.example%s\n\n", b, r)
+	fmt.Printf("      Permanent: %sexport DROP_RELAY=https://your-relay.example%s\n\n", b, r)
 
 	fmt.Printf("%sExamples%s\n", b, r)
-	fmt.Printf("  airpipe send report.pdf\n")
-	fmt.Printf("  airpipe send report.pdf notes.txt    %s# p2p: two files, one connection%s\n", d, r)
-	fmt.Printf("  airpipe send photos/ docs/          %s# mailed or p2p with dirs: zip%s\n", d, r)
-	fmt.Printf("  airpipe download RIVER FALCON MARBLE 42\n")
-	fmt.Printf("  airpipe receive ~/Downloads\n")
-	fmt.Printf("  airpipe --relay https://my.relay send a.zip\n\n")
+	fmt.Printf("  drop send report.pdf\n")
+	fmt.Printf("  drop send report.pdf notes.txt    %s# p2p: two files, one connection%s\n", d, r)
+	fmt.Printf("  drop send photos/ docs/          %s# mailed or p2p with dirs: zip%s\n", d, r)
+	fmt.Printf("  drop download RIVER FALCON MARBLE 42\n")
+	fmt.Printf("  drop receive ~/Downloads\n")
+	fmt.Printf("  drop --relay https://my.relay send a.zip\n\n")
 
 	fmt.Printf("%sLinks%s\n", b, r)
-	fmt.Printf("  Source        github.com/Sanyam-G/Airpipe\n")
-	fmt.Printf("  Web sender    https://airpipe.sanyamgarg.com\n\n")
+	fmt.Printf("  Source        github.com/whaeuser/Airpipe\n")
+	fmt.Printf("  Web sender    https://drop.example.com\n\n")
 }

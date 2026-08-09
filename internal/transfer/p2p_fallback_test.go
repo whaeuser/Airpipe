@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/sanyamgarg/airpipe/internal/crypto"
-	"github.com/sanyamgarg/airpipe/internal/p2p"
-	"github.com/sanyamgarg/airpipe/internal/transfer"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/p2p"
+	"github.com/whaeuser/drop/internal/transfer"
 )
 
 func writeOneFileWS(t *testing.T, write func(transfer.Message), content []byte, filename string) {

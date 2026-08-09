@@ -10,9 +10,9 @@ func TestArchiveName(t *testing.T) {
 		{[]string{"photos"}, "photos.zip"},
 		{[]string{"photos/"}, "photos.zip"},
 		{[]string{"/Users/x/docs"}, "docs.zip"},
-		{[]string{"."}, "airpipe-1-items.zip"},
-		{[]string{"a.txt", "b.txt"}, "airpipe-2-items.zip"},
-		{[]string{"photos", "docs", "a.txt"}, "airpipe-3-items.zip"},
+		{[]string{"."}, "drop-1-items.zip"},
+		{[]string{"a.txt", "b.txt"}, "drop-2-items.zip"},
+		{[]string{"photos", "docs", "a.txt"}, "drop-3-items.zip"},
 	}
 	for _, c := range cases {
 		if got := archiveName(c.paths); got != c.want {
@@ -50,10 +50,10 @@ func TestParseStayOpenFlags(t *testing.T) {
 }
 
 func TestRelayURLConversion(t *testing.T) {
-	if got := toWS("https://airpipe.example.com"); got != "wss://airpipe.example.com" {
+	if got := toWS("https://drop.example.com"); got != "wss://drop.example.com" {
 		t.Fatal(got)
 	}
-	if got := toHTTP("wss://airpipe.example.com"); got != "https://airpipe.example.com" {
+	if got := toHTTP("wss://drop.example.com"); got != "https://drop.example.com" {
 		t.Fatal(got)
 	}
 }

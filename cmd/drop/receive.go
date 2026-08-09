@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/sanyamgarg/airpipe/internal/crypto"
-	"github.com/sanyamgarg/airpipe/internal/passphrase"
-	"github.com/sanyamgarg/airpipe/internal/qr"
-	"github.com/sanyamgarg/airpipe/internal/transfer"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/passphrase"
+	"github.com/whaeuser/drop/internal/qr"
+	"github.com/whaeuser/drop/internal/transfer"
 )
 
 func cmdReceive(relay, destDir string, stayOpen bool) error {

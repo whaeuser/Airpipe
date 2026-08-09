@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sanyamgarg/airpipe/internal/crypto"
-	"github.com/sanyamgarg/airpipe/internal/qr"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/qr"
 )
 
 // ANSI escape codes
@@ -20,11 +20,9 @@ const (
 )
 
 func banner(mode string) {
-	fmt.Fprintf(os.Stderr, "\n  %s%s    _   _     %s___  _          %s\n", colorBold, colorBrand, colorReset, colorReset)
-	fmt.Fprintf(os.Stderr, "  %s%s   /_\\ (_)_ _|%s _ \\(_)_ __  ___  %s\n", colorBold, colorBrand, colorReset, colorReset)
-	fmt.Fprintf(os.Stderr, "  %s%s  / _ \\| | '_|%s  _/| | '_ \\/ -_) %s\n", colorBold, colorBrand, colorReset, colorReset)
-	fmt.Fprintf(os.Stderr, "  %s%s /_/ \\_\\_|_| |%s_|  |_| .__/\\___| %s\n", colorBold, colorBrand, colorReset, colorReset)
-	fmt.Fprintf(os.Stderr, "  %s%s             %s      |_|    %s%s%s\n\n", colorBold, colorBrand, colorReset, colorDim, mode, colorReset)
+	fmt.Fprintf(os.Stderr, "\n  %s%s╔══════════╗%s\n", colorBold, colorBrand, colorReset)
+	fmt.Fprintf(os.Stderr, "  %s%s║  D R O P ║%s  %s%s%s\n", colorBold, colorBrand, colorReset, colorDim, mode, colorReset)
+	fmt.Fprintf(os.Stderr, "  %s%s╚══════════╝%s\n\n", colorBold, colorBrand, colorReset)
 }
 
 func displayPassphrase(phrase, httpRelay, token string, key []byte) {
@@ -32,7 +30,7 @@ func displayPassphrase(phrase, httpRelay, token string, key []byte) {
 	fmt.Printf("  %s%s║  %-40s║%s\n", colorBold, colorBrand, phrase, colorReset)
 	fmt.Printf("  %s%s╚══════════════════════════════════════════╝%s\n\n", colorBold, colorBrand, colorReset)
 	fmt.Printf("  Tell them: %s%s%s\n", colorBold, httpRelay, colorReset)
-	fmt.Printf("  Or run:    %sairpipe download %s%s\n\n", colorBold, phrase, colorReset)
+	fmt.Printf("  Or run:    %sdrop download %s%s\n\n", colorBold, phrase, colorReset)
 
 	url := fmt.Sprintf("%s/d/%s#%s", httpRelay, token, crypto.KeyToBase64(key))
 	qr.GenerateTerminal(url)

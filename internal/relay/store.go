@@ -35,7 +35,7 @@ type FileStore struct {
 }
 
 func NewFileStore(parent context.Context, log *slog.Logger, expiry time.Duration) (*FileStore, error) {
-	dir, err := os.MkdirTemp("", "airpipe-*")
+	dir, err := os.MkdirTemp("", "drop-*")
 	if err != nil {
 		return nil, err
 	}

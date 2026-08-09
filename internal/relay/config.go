@@ -21,13 +21,13 @@ type Config struct {
 func LoadConfig() Config {
 	c := Config{
 		Port:            getenv("PORT", "8080"),
-		RateLimitPerMin: getenvInt("AIRPIPE_RATE_LIMIT_PER_MIN", 60),
-		LogFormat:       getenv("AIRPIPE_LOG_FORMAT", "json"),
-		MaxUploadBytes:  int64(getenvInt("AIRPIPE_MAX_UPLOAD_MB", 500)) << 20,
-		FileExpiry:      getenvDuration("AIRPIPE_FILE_EXPIRY", 10*time.Minute),
+		RateLimitPerMin: getenvInt("DROP_RATE_LIMIT_PER_MIN", 60),
+		LogFormat:       getenv("DROP_LOG_FORMAT", "json"),
+		MaxUploadBytes:  int64(getenvInt("DROP_MAX_UPLOAD_MB", 500)) << 20,
+		FileExpiry:      getenvDuration("DROP_FILE_EXPIRY", 10*time.Minute),
 	}
 	// Only needed for pages served from a different domain; same-origin is always allowed.
-	raw := strings.TrimSpace(os.Getenv("AIRPIPE_ALLOWED_ORIGINS"))
+	raw := strings.TrimSpace(os.Getenv("DROP_ALLOWED_ORIGINS"))
 	if raw == "" {
 		c.AllowedOrigins = nil
 	} else if raw == "*" {

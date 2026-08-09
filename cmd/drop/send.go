@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sanyamgarg/airpipe/internal/archive"
-	"github.com/sanyamgarg/airpipe/internal/crypto"
-	"github.com/sanyamgarg/airpipe/internal/mailbox"
-	"github.com/sanyamgarg/airpipe/internal/passphrase"
-	"github.com/sanyamgarg/airpipe/internal/transfer"
+	"github.com/whaeuser/drop/internal/archive"
+	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/mailbox"
+	"github.com/whaeuser/drop/internal/passphrase"
+	"github.com/whaeuser/drop/internal/transfer"
 )
 
 func cmdSend(relay string, args []string) error {
@@ -26,7 +26,7 @@ func cmdSend(relay string, args []string) error {
 	}
 	files := sendFS.Args()
 	if len(files) == 0 {
-		return fmt.Errorf("usage: airpipe send [--stay-open] [--mode p2p|mailbox] <file> [file2...]")
+		return fmt.Errorf("usage: drop send [--stay-open] [--mode p2p|mailbox] <file> [file2...]")
 	}
 
 	anyDir := false
@@ -124,7 +124,7 @@ func archiveName(paths []string) string {
 			return base + ".zip"
 		}
 	}
-	return fmt.Sprintf("airpipe-%d-items.zip", len(paths))
+	return fmt.Sprintf("drop-%d-items.zip", len(paths))
 }
 
 func resolveMode(flagVal string) (string, error) {

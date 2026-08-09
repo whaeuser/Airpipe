@@ -1,7 +1,7 @@
 services:
   relay:
-    image: ghcr.io/sanyam-g/airpipe-relay:latest
-    container_name: airpipe-relay
+    image: drop-relay:local:latest
+    container_name: drop-relay
     restart: unless-stopped
     ports:
       - "8088:8080"
@@ -13,7 +13,7 @@ services:
   # control upgrades manually.
   watchtower:
     image: containrrr/watchtower
-    container_name: airpipe-watchtower
+    container_name: drop-watchtower
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

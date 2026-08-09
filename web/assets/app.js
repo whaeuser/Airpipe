@@ -6,7 +6,7 @@
     if (cached && now - cached.t < 3600000) {
       starsEl.textContent = fmtStars(cached.n);
     } else {
-      fetch('https://api.github.com/repos/Sanyam-G/Airpipe')
+      fetch('https://api.github.com/repos/whaeuser/Airpipe')
         .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
         .then(function (repo) {
           const n = repo.stargazers_count;
@@ -94,7 +94,7 @@
     }).join('');
   }
 
-  const cacheKey = 'airpipe-releases';
+  const cacheKey = 'drop-releases';
   const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
   const now = Date.now();
 
@@ -109,7 +109,7 @@
     return;
   }
 
-  fetch('https://api.github.com/repos/Sanyam-G/Airpipe/releases?per_page=' + Math.max(limit, 20))
+  fetch('https://api.github.com/repos/whaeuser/Airpipe/releases?per_page=' + Math.max(limit, 20))
     .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function (rels) {
       render(rels);
@@ -117,7 +117,7 @@
     })
     .catch(function () {
       if (cached) { render(cached.r); return; }
-      list.innerHTML = 'Couldn’t load releases. <a href="https://github.com/Sanyam-G/Airpipe/releases" target="_blank" rel="noopener">View on GitHub</a>.';
+      list.innerHTML = 'Couldn’t load releases. <a href="https://github.com/whaeuser/Airpipe/releases" target="_blank" rel="noopener">View on GitHub</a>.';
     });
 })();
 
@@ -199,9 +199,9 @@
       err.textContent = 'browser missing crypto.subtle (needs HTTPS or localhost)';
       return;
     }
-    const t = await sha256('airpipe:token:' + p);
-    const k = await sha256('airpipe:key:' + p);
-    const rt = await sha256('airpipe:receive-token:' + p);
+    const t = await sha256('drop:token:' + p);
+    const k = await sha256('drop:key:' + p);
+    const rt = await sha256('drop:receive-token:' + p);
     try {
       const room = await fetch('/room/' + hex(rt.slice(0, 8)));
       if (room.ok && (await room.json()).waiting) {

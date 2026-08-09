@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>airpipe · AMB2 self-check</title>
+<title>drop · AMB2 self-check</title>
 <style>
   body{background:#1B1714;color:#ECE6DC;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;margin:24px;max-width:900px}
   h1{font-size:18px;font-weight:600;margin:0 0 16px}
@@ -18,11 +18,11 @@
 </head>
 <body>
 <h1>AMB2 wire-format self-check</h1>
-<p style="opacity:0.7">Loads airpipe-mailbox.js and asserts encode/decode against the same fixture pinned in <code>internal/mailbox/payload_test.go</code>. Any drift means a sync issue between the Go and JS implementations.</p>
+<p style="opacity:0.7">Loads drop-mailbox.js and asserts encode/decode against the same fixture pinned in <code>internal/mailbox/payload_test.go</code>. Any drift means a sync issue between the Go and JS implementations.</p>
 <div id="results"></div>
 <div id="summary" class="summary"></div>
 
-<script src="/static/airpipe-mailbox.js"></script>
+<script src="/static/drop-mailbox.js"></script>
 <script>
 const fixtureV1Hex="0000000968656c6c6f2e747874776f726c64";
 const fixtureV1Name="hello.txt";
