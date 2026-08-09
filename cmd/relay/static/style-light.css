@@ -18,6 +18,8 @@ html[data-theme="light"] {
   --accent-strong: #D46A28;
   --accent-soft:  rgba(233, 122, 56, 0.09);
   --accent-line:  rgba(233, 122, 56, 0.30);
+  --success:      #1E9E68;
+  --success-glow: rgba(30, 158, 104, 0.5);
 }
 
 /* ---- top-strip: needs solid background in light mode ---- */

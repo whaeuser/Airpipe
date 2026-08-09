@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=20260510b">
+<link rel="stylesheet" href="/static/style.css?v=20260809a">
 <link rel="stylesheet" href="/static/style-light.css?v=20260516a">
 <script>(function(){var t=localStorage.getItem('drop-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light')})();</script>
 <script src="/static/config.js"></script>
@@ -90,6 +90,7 @@
 <script src="/static/nacl-fast.min.js"></script>
 <script>
 const NEGOTIATE_TIMEOUT_MS = 15000;
+const WAITING_TIMEOUT_MS = 120000;
 
 const MSG_METADATA = 0x01, MSG_READY = 0x02, MSG_COMPLETE = 0x03, MSG_ERROR = 0x04;
 const MSG_CHUNK = 0x10;
@@ -272,10 +273,22 @@ let bytesReceived = 0;
 let receivedChunks = [];
 let startTime = 0;
 let lastUIUpdate = 0;
+let waitingTimeoutId = null;
+
+function clearWaitingTimeout() {
+  if (waitingTimeoutId) { clearTimeout(waitingTimeoutId); waitingTimeoutId = null }
+}
 
 function runLive() {
   phase = 'waiting';
   show('waiting');
+
+  waitingTimeoutId = setTimeout(() => {
+    if (phase === 'waiting') {
+      if (ws) { try { ws.close() } catch (_) { } }
+      showError(t('js_no_sender'));
+    }
+  }, WAITING_TIMEOUT_MS);
 
   ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/' + token);
   ws.binaryType = 'arraybuffer';
@@ -286,11 +299,13 @@ function runLive() {
   };
 
   ws.onerror = () => {
+    clearWaitingTimeout();
     showError(t('js_relay_lost'));
   };
 
   ws.onclose = () => {
     if (phase === 'negotiating' || phase === 'receiving') {
+      clearWaitingTimeout();
       showError(t('js_closed_sender',{phase}));
     }
   };
@@ -303,6 +318,7 @@ function runLive() {
     if (!msg) return;
 
     if (msg.type === MSG_SDP_OFFER) {
+      clearWaitingTimeout();
       phase = 'negotiating';
       show('negotiating');
       try {
@@ -321,6 +337,7 @@ function runLive() {
       return;
     }
     if (msg.type === MSG_P2P_FAIL) {
+      clearWaitingTimeout();
       transport = 'ws';
       if (pc) { try { pc.close() } catch (_) { } pc = null; dc = null }
       phase = 'receiving';

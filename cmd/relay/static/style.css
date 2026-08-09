@@ -12,6 +12,8 @@
   --accent-strong: #E54600;
   --accent-soft: rgba(255, 79, 0, 0.08);
   --accent-line: rgba(255, 79, 0, 0.3);
+  --success: #3ED598;
+  --success-glow: rgba(62, 213, 152, 0.6);
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --sans: 'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   --display: 'JetBrains Mono', ui-monospace, monospace;
@@ -94,9 +96,9 @@ a:hover { color: var(--accent); }
 }
 .strip-cell.status.live { color: var(--fg); }
 .strip-cell.status.live .dot {
-  background: var(--accent);
+  background: var(--success);
   animation: blink 1.2s step-end infinite;
-  box-shadow: 0 0 8px rgba(255, 79, 0, 0.6);
+  box-shadow: 0 0 8px var(--success-glow);
 }
 .strip-cell.status.err { color: var(--accent); }
 .strip-cell.status.err .dot { background: var(--accent); }
