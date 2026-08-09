@@ -96,7 +96,7 @@ func NewPeer(role Role, cfg Config) (*Peer, error) {
 	ordered := true
 	dcID := uint16(1)
 	negotiated := true
-	dc, dcErr := pc.CreateDataChannel("drop", &webrtc.DataChannelInit{
+	dc, dcErr := pc.CreateDataChannel("airpipe", &webrtc.DataChannelInit{
 		Ordered:    &ordered,
 		ID:         &dcID,
 		Negotiated: &negotiated,

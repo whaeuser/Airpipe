@@ -1,95 +1,71 @@
-# Drop
+# AirPipe
 
-Self-hosted file transfer with a passphrase that works anywhere. Files go peer-to-peer between any two devices. The relay never sees your bytes.
+Send a file to any device by sharing a passphrase. It streams straight from one machine to the other, encrypted end to end. The relay that connects the two ends never sees your bytes.
 
-![demo](demo.gif)
+![AirPipe: a file streams peer-to-peer from a sender terminal to a receiver terminal via an encrypted passphrase](demo.svg)
 
-**Try it:** [drop.volt-logik.io](https://drop.volt-logik.io)
+**Try it:** [airpipe.sanyamgarg.com](https://airpipe.sanyamgarg.com)
 
-## How it works in 30 seconds
+## How it works
 
-1. Sender picks a file. Gets a passphrase like `RIVER FALCON MARBLE 42`.
-2. Receiver types it at the homepage, runs `drop download <PHRASE>`, or scans the QR.
-3. Both pair through the relay, then the file streams directly between them over WebRTC.
-4. If the receiver isn't online yet, the sender can pick "mailbox" mode instead. The relay holds the encrypted file for 10 minutes.
+The sender picks a file and gets a passphrase like `RIVER FALCON MARBLE 42`. The receiver enters it on the website, in the terminal (`airpipe download RIVER FALCON MARBLE 42`), or by scanning the QR. The file then transfers directly between the two devices, encrypted the whole way.
 
-Same passphrase works for both modes. Receiver doesn't need to know which one the sender chose.
+If the receiver is offline, the sender can use **mailbox** mode: the relay holds the encrypted file for 10 minutes until it's picked up. Same passphrase either way. The receiver never has to know which mode was used.
+
+## Getting past NAT
+
+Two devices on home or office networks usually can't reach each other directly. Each one sits behind a router doing NAT, which drops connections it didn't expect, so neither side can just dial the other.
+
+AirPipe gets around this the way peer-to-peer normally does. Both devices open an **outbound** connection to the relay (outbound traffic passes through NAT freely), and the relay introduces them. Over that channel they run a short **handshake**, trading their public addresses and candidate routes until they find a path that punches through both NATs. Once it's open the file flows **directly** between them and the relay drops out.
+
+If the NATs are too strict to punch through, the transfer falls back to the relay, which forwards the encrypted bytes blind. It still can't read them.
 
 ## Self-host
 
 ```bash
-git clone https://github.com/whaeuser/Airpipe
-cd Airpipe
-docker compose build && docker compose up -d
+docker run -p 8080:8080 ghcr.io/sanyam-g/airpipe-relay
 ```
 
-One Go binary, ~15 MB image. Bundles the landing page, browser sender/receiver, and the install script.
+One Go binary, ~15 MB image, bundling the web UI and install script. Or clone and `docker compose up -d` (ships an opt-in Watchtower auto-updater).
 
-Env vars to tune things (set in `docker-compose.yml` or `.env`):
+Point the CLI at your relay with `export AIRPIPE_RELAY=https://your-server.example` (or `--relay` per call). Tunables, all optional:
 
-| Variable | Default | Description |
+| Var | Default | Notes |
 |---|---|---|
-| `PORT` | `8080` | Listen port inside container |
-| `DROP_ALLOWED_ORIGINS` | localhost | Comma-separated CORS allowlist, or `*` |
-| `DROP_RATE_LIMIT_PER_MIN` | `60` | Rate limit per IP |
-| `DROP_LOG_FORMAT` | `json` | `json` or `text` |
-| `DROP_MAX_UPLOAD_MB` | `500` | Mailbox upload size limit |
-| `PUSHOVER_TOKEN` / `PUSHOVER_USER` | — | Optional Pushover notifications on every send |
+| `PORT` | `8080` | |
+| `AIRPIPE_ALLOWED_ORIGINS` | same-origin | Extra origins if pages serve from another domain. `*` = any. |
+| `AIRPIPE_RATE_LIMIT_PER_MIN` | `60` | |
+| `AIRPIPE_MAX_UPLOAD_MB` | `500` | Mailbox size cap. |
+| `AIRPIPE_FILE_EXPIRY` | `10m` | Mailbox expiry (Go duration). |
+
+The relay reports config and stats at `/health` (JSON) and `/metrics` (Prometheus). The web UI reads the real limits from `/health`.
 
 ## CLI
 
-Install via curl (auto-detects OS and architecture):
 ```bash
-curl -sSL https://github.com/whaeuser/Airpipe/releases/latest/download/drop-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') -o /tmp/drop && chmod +x /tmp/drop && sudo mv /tmp/drop /usr/local/bin/drop
+curl -sSL https://airpipe.sanyamgarg.com/install.sh | sh   # or: go install github.com/Sanyam-G/Airpipe/cmd/airpipe@latest
 ```
 
-Self-update later: `drop update`. Linux + macOS, amd64 + arm64.
-
-### Send
+Linux, macOS, Windows (amd64 + arm64). Self-update with `airpipe update`.
 
 ```bash
-drop report.pdf
-```
-Or explicitly: `drop send report.pdf`. You get a prompt: direct (P2P) or mailbox (relay holds it 10 min). The CLI shows a passphrase, a QR, and a link.
-
-Multiple files or a folder get auto-zipped:
-```bash
-drop file1.txt photos/
+airpipe send report.pdf              # prompts: direct (P2P) or mailbox
+airpipe send file1.txt photos/       # multiple files / folders auto-zip
+airpipe download RIVER FALCON MARBLE 42
+airpipe receive ./downloads          # wait for someone to send to you; prints a QR
 ```
 
-### Download
+## Browser to browser
 
-```bash
-drop download RIVER FALCON MARBLE 42
-```
-
-### Wait for someone to send to you
-
-```bash
-drop receive ./downloads
-```
-Prints a QR. Phone scans it, drops a file, the file lands in `./downloads`. Direct WebRTC, fallback to relay if NAT punching fails.
-
-### Version / update
-
-```bash
-drop version   # show installed version
-drop update    # self-update to latest release
-```
-
-## Browser to browser, no install
-
-Open `drop.volt-logik.io/live`. Get a passphrase + QR. Receiver types the passphrase at the homepage in their browser. Both pair, sender drops a file. No CLI, no app, no account.
+Open [`/live`](https://airpipe.sanyamgarg.com/live) for a passphrase + QR, no install on either side. The receiver enters it at the homepage and the file transfers between the two browsers.
 
 ## Encryption
 
-NaCl secretbox (Poly1305 + XSalsa20, 256-bit key) on top of DTLS for the live path. The key never leaves the side that generated it. The relay only sees a 16-char room token and ciphertext.
-
-The passphrase derives both the relay token and the encryption key via SHA-256 with domain separation. Same algorithm on CLI and browser.
+NaCl secretbox (XSalsa20 + Poly1305, 256-bit), layered on DTLS for the direct path. The passphrase derives both the relay token and the encryption key via domain-separated SHA-256, identical on CLI and browser. The key never leaves the device that made it; the relay only ever sees a room token and ciphertext.
 
 ## Stack
 
-Go relay (gorilla/websocket, pion/webrtc), embedded HTML/CSS/JS frontend (tweetnacl.js for browser crypto), Docker. Single static binary.
+Go relay (gorilla/websocket, pion/webrtc), embedded HTML/CSS/JS frontend (tweetnacl.js in the browser), Docker, optional Cloudflare Tunnel. Single static binary.
 
 ## License
 

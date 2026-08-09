@@ -1,4 +1,4 @@
-module github.com/whaeuser/drop
+module github.com/sanyamgarg/airpipe
 
 go 1.25.0
 

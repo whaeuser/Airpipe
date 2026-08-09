@@ -114,8 +114,7 @@ func TestZipSkipsSymlinksInsideDirectory(t *testing.T) {
 	os.MkdirAll(dir, 0755)
 	os.WriteFile(filepath.Join(dir, "real.txt"), []byte("visible"), 0644)
 
-	// A symlink inside the directory pointing outside — a classic attempt to
-	// smuggle sensitive files out via an archive.
+	// symlink pointing outside the dir, should not be followed into the zip
 	outside := filepath.Join(tmp, "sensitive.txt")
 	os.WriteFile(outside, []byte("do-not-leak"), 0644)
 	if err := os.Symlink(outside, filepath.Join(dir, "leak.txt")); err != nil {

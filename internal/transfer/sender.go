@@ -9,16 +9,27 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/sanyamgarg/airpipe/internal/crypto"
+	"github.com/sanyamgarg/airpipe/internal/p2p"
 )
 
 const ChunkSize = 64 * 1024
 
+type senderTransport int
+
+const (
+	senderTransportIdle senderTransport = iota
+	senderTransportP2P
+	senderTransportWS
+)
+
 type Sender struct {
-	relayURL string
-	token    string
-	key      []byte
-	conn     *websocket.Conn
+	relayURL  string
+	token     string
+	key       []byte
+	conn      *websocket.Conn
+	peer      *p2p.Peer
+	transport senderTransport
 }
 
 func NewSender(relayURL, token string, key []byte) *Sender {
@@ -27,7 +38,7 @@ func NewSender(relayURL, token string, key []byte) *Sender {
 
 func (s *Sender) Connect() error {
 	url := fmt.Sprintf("%s/ws/%s", s.relayURL, s.token)
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	conn, _, err := relayDialer.Dial(url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to connect to relay: %w", err)
 	}
@@ -43,11 +54,10 @@ func (s *Sender) Connect() error {
 	return nil
 }
 
-// ConnectLive opens the WS room and waits silently. Used when the sender
-// holds a passphrase-derived token and the receiver will join later.
+// open the room and sit quiet, receiver shows up later
 func (s *Sender) ConnectLive() error {
 	url := fmt.Sprintf("%s/ws/%s", s.relayURL, s.token)
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	conn, _, err := relayDialer.Dial(url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to connect to relay: %w", err)
 	}
@@ -55,7 +65,7 @@ func (s *Sender) ConnectLive() error {
 	return nil
 }
 
-// WaitForPeer blocks until the receiver joins the room and emits PEER_JOIN.
+// block until the receiver pings us
 func (s *Sender) WaitForPeer(timeout time.Duration) error {
 	s.conn.SetReadDeadline(time.Now().Add(timeout))
 	defer s.conn.SetReadDeadline(time.Time{})
@@ -94,28 +104,118 @@ func (s *Sender) WaitForReceiver(timeout time.Duration) error {
 }
 
 func (s *Sender) SendFile(filePath string, progressFn func(sent, total int64)) error {
-	ctx := context.Background()
-
-	peer, err := negotiateSender(ctx, s.conn, s.key)
-	if err == nil {
-		fmt.Fprintln(os.Stderr, "transport: p2p")
-		if sigErr := writeSignalMsg(s.conn, s.key, NewP2PReadyMessage()); sigErr != nil {
-			peer.Close()
-			return fmt.Errorf("signal p2p ready: %w", sigErr)
+	return s.SendFiles([]string{filePath}, func(_ int, sent, total int64) {
+		if progressFn != nil {
+			progressFn(sent, total)
 		}
-		streamErr := s.streamFile(peer.Send, filePath, progressFn)
-		// Drain before close so Complete isn't dropped.
-		peer.WaitDrain(10 * time.Second)
-		peer.Close()
-		return streamErr
-	}
+	})
+}
 
-	fmt.Fprintf(os.Stderr, "transport: ws (p2p failed: %v)\n", err)
-	_ = writeSignalMsg(s.conn, s.key, NewP2PFailMessage(err.Error()))
-	wsSend := func(data []byte) error {
+// SendFiles sends one batch and tears down negotiated P2P (legacy one-shot callers).
+func (s *Sender) SendFiles(paths []string, progressFn func(fileIndex int, sent, total int64)) error {
+	if err := s.SendBatch(paths, progressFn); err != nil {
+		return err
+	}
+	s.CloseTransport()
+	return nil
+}
+
+func (s *Sender) wsSendWire() func([]byte) error {
+	return func(data []byte) error {
 		return s.conn.WriteMessage(websocket.BinaryMessage, data)
 	}
-	return s.streamFile(wsSend, filePath, progressFn)
+}
+
+func (s *Sender) negotiateOrReuse(ctx context.Context) (sendWire func([]byte) error, err error) {
+	switch s.transport {
+	case senderTransportP2P:
+		if s.peer == nil || !s.peer.IsOpen() {
+			return nil, fmt.Errorf("p2p transport closed")
+		}
+		return s.peer.Send, nil
+	case senderTransportWS:
+		return s.wsSendWire(), nil
+	case senderTransportIdle:
+		peer, nerr := negotiateSender(ctx, s.conn, s.key)
+		if nerr == nil {
+			fmt.Fprintln(os.Stderr, "transport: p2p")
+			if sigErr := writeSignalMsg(s.conn, s.key, NewP2PReadyMessage()); sigErr != nil {
+				peer.Close()
+				s.peer = nil
+				s.transport = senderTransportIdle
+				return nil, fmt.Errorf("signal p2p ready: %w", sigErr)
+			}
+			s.peer = peer
+			s.transport = senderTransportP2P
+			return s.peer.Send, nil
+		}
+		fmt.Fprintf(os.Stderr, "transport: ws (p2p failed: %v)\n", nerr)
+		_ = writeSignalMsg(s.conn, s.key, NewP2PFailMessage(nerr.Error()))
+		s.transport = senderTransportWS
+		return s.wsSendWire(), nil
+	default:
+		return nil, fmt.Errorf("sender: invalid transport state")
+	}
+}
+
+// SendBatch streams each path over the negotiated transport for this WebSocket session, then sends SessionEnd without closing peer or WebSocket (use for persistent sessions).
+func (s *Sender) SendBatch(paths []string, progressFn func(fileIndex int, sent, total int64)) error {
+	if len(paths) == 0 {
+		return fmt.Errorf("no files to send")
+	}
+	ctx := context.Background()
+
+	sendWire, err := s.negotiateOrReuse(ctx)
+	if err != nil {
+		return err
+	}
+
+	for i, p := range paths {
+		idx := i
+		wrap := func(sent, total int64) {
+			if progressFn != nil {
+				progressFn(idx, sent, total)
+			}
+		}
+		if streamErr := s.streamFile(sendWire, p, wrap); streamErr != nil {
+			if s.transport == senderTransportP2P && s.peer != nil {
+				s.peer.WaitDrain(10 * time.Second)
+				s.peer.Close()
+				s.peer = nil
+				s.transport = senderTransportIdle
+			}
+			return streamErr
+		}
+	}
+
+	if s.transport == senderTransportP2P && s.peer != nil {
+		if sigErr := s.writeEncrypted(sendWire, NewSessionEndMessage()); sigErr != nil {
+			s.peer.WaitDrain(10 * time.Second)
+			s.peer.Close()
+			s.peer = nil
+			s.transport = senderTransportIdle
+			return fmt.Errorf("send session end: %w", sigErr)
+		}
+		s.peer.WaitDrain(10 * time.Second)
+		return nil
+	}
+
+	if err := s.writeEncrypted(sendWire, NewSessionEndMessage()); err != nil {
+		return fmt.Errorf("send session end: %w", err)
+	}
+	return nil
+}
+
+// CloseTransport shuts down negotiated P2P for this Sender; WS relay mode stays on the socket until Close().
+func (s *Sender) CloseTransport() {
+	if s.peer != nil {
+		s.peer.WaitDrain(10 * time.Second)
+		s.peer.Close()
+		s.peer = nil
+	}
+	if s.transport == senderTransportP2P {
+		s.transport = senderTransportIdle
+	}
 }
 
 func (s *Sender) streamFile(sendWire func([]byte) error, filePath string, progressFn func(sent, total int64)) error {
@@ -178,6 +278,8 @@ func (s *Sender) writeEncrypted(sendWire func([]byte) error, msg Message) error 
 }
 
 func (s *Sender) Close() error {
+	s.CloseTransport()
+	s.transport = senderTransportIdle
 	if s.conn != nil {
 		return s.conn.Close()
 	}

@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
-// Generate returns a passphrase like "RIVER FALCON 42".
-// 2 random words from the 1024-word list + a 2-digit number (10-99).
+// Generate returns a passphrase like "RIVER FALCON MARBLE 42".
+// 4 random words from the 1024-word list + a 2-digit number (10-99).
 func Generate() string {
-	words := make([]string, 2)
+	words := make([]string, 4)
 	for i := range words {
 		n, err := rand.Int(rand.Reader, big.NewInt(1024))
 		if err != nil {
@@ -37,12 +37,19 @@ func Normalize(phrase string) string {
 // DeriveToken returns a 16-char hex token derived from the passphrase.
 // Uses SHA-256 with a domain-separated prefix, takes the first 8 bytes.
 func DeriveToken(phrase string) string {
-	h := sha256.Sum256([]byte("drop:token:" + Normalize(phrase)))
+	h := sha256.Sum256([]byte("airpipe:token:" + Normalize(phrase)))
+	return hex.EncodeToString(h[:8])
+}
+
+// DeriveReceiveToken returns the room token a receiver waits on. Separate
+// domain from DeriveToken so the landing resolver can route /u/ vs /d/.
+func DeriveReceiveToken(phrase string) string {
+	h := sha256.Sum256([]byte("airpipe:receive-token:" + Normalize(phrase)))
 	return hex.EncodeToString(h[:8])
 }
 
 // DeriveKey returns a 32-byte NaCl secretbox key derived from the passphrase.
 // Uses SHA-256 with a domain-separated prefix.
 func DeriveKey(phrase string) [32]byte {
-	return sha256.Sum256([]byte("drop:key:" + Normalize(phrase)))
+	return sha256.Sum256([]byte("airpipe:key:" + Normalize(phrase)))
 }

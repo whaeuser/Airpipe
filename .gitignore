@@ -1,5 +1,6 @@
 /relay
-/airpipe
-/airpipe-*
+/drop
+/drop-*
 *.exe
+/tmp/
 .env

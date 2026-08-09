@@ -5,16 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/whaeuser/drop/internal/crypto"
-	"github.com/whaeuser/drop/internal/p2p"
+	"github.com/sanyamgarg/airpipe/internal/crypto"
+	"github.com/sanyamgarg/airpipe/internal/p2p"
 )
 
-var ErrPeerP2PFail = errors.New("peer p2p fail")
-
 const NegotiateTimeout = 15 * time.Second
+
+var ErrPeerP2PFail = errors.New("peer p2p fail")
 
 func writeSignalMsg(conn *websocket.Conn, key []byte, msg Message) error {
 	encrypted, err := crypto.EncryptChunk(EncodeMessage(msg), key)
@@ -41,8 +42,7 @@ type wsRead struct {
 	err error
 }
 
-// gorilla/websocket panics on a read after a previous read error, so all reads
-// funnel through this single goroutine.
+// one goroutine reads conn; gorilla panics on multiple readers
 func startWSReader(conn *websocket.Conn, key []byte, stopCh <-chan struct{}) <-chan wsRead {
 	out := make(chan wsRead, 16)
 	go func() {
@@ -245,7 +245,7 @@ func tailReader(reads <-chan wsRead) msgReader {
 	return func() (Message, error) {
 		r, ok := <-reads
 		if !ok {
-			return Message{}, fmt.Errorf("signaling channel closed")
+			return Message{}, io.EOF
 		}
 		return r.msg, r.err
 	}

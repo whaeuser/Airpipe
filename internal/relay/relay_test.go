@@ -1,4 +1,4 @@
-package main
+package relay
 
 import (
 	"bytes"
@@ -20,27 +20,33 @@ func newTestLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func newTestServer(t *testing.T) *server {
-	t.Helper()
-	log := newTestLogger()
-	ctx := context.Background()
-	s := &server{
-		cfg: config{
-			allowAnyOrigin:  true,
-			rateLimitPerMin: 10000,
-			maxUploadSize:   500 << 20,
-		},
-		log:         log,
-		fileStore:   NewFileStore(ctx, log, 10*time.Minute),
-		roomManager: NewRoomManager(ctx, log),
-		rl:          newIPLimiter(10000),
+func testConfig() Config {
+	return Config{
+		AllowAnyOrigin:  true,
+		RateLimitPerMin: 10000,
+		MaxUploadBytes:  500 << 20,
+		FileExpiry:      10 * time.Minute,
 	}
-	s.upgrader = websocket.Upgrader{CheckOrigin: originChecker(s.cfg, log)}
-	t.Cleanup(func() {
-		s.fileStore.Shutdown()
-		s.roomManager.Shutdown()
-	})
+}
+
+func newTestServer(t *testing.T) *Server {
+	t.Helper()
+	s, err := New(context.Background(), testConfig(), newTestLogger(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Shutdown)
 	return s
+}
+
+func newTestFileStore(t *testing.T) *FileStore {
+	t.Helper()
+	fs, err := NewFileStore(context.Background(), newTestLogger(), 10*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(fs.Shutdown)
+	return fs
 }
 
 func TestRoomManagerCreateAndGet(t *testing.T) {
@@ -84,9 +90,7 @@ func TestRoomManagerDelete(t *testing.T) {
 
 func TestRoomAddClientLimit(t *testing.T) {
 	s := newTestServer(t)
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /ws/{token}", s.handleWebSocket)
-	srv := httptest.NewServer(mux)
+	srv := httptest.NewServer(s.Routes())
 	defer srv.Close()
 
 	wsURL := "ws" + srv.URL[4:] + "/ws/limit-test"
@@ -158,12 +162,10 @@ func TestRoomLastActivityRefresh(t *testing.T) {
 
 func TestHealthEndpoint(t *testing.T) {
 	s := newTestServer(t)
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", s.handleHealth)
 
 	req := httptest.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
+	s.Routes().ServeHTTP(w, req)
 
 	if w.Code != 200 {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -181,16 +183,44 @@ func TestHealthEndpoint(t *testing.T) {
 	if _, ok := body["protocol_version"]; !ok {
 		t.Fatal("health missing protocol_version field")
 	}
+	if _, ok := body["max_upload_bytes"]; !ok {
+		t.Fatal("health missing max_upload_bytes field")
+	}
+	if _, ok := body["expiry_seconds"]; !ok {
+		t.Fatal("health missing expiry_seconds field")
+	}
+}
+
+func TestMetricsEndpoint(t *testing.T) {
+	s := newTestServer(t)
+
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	w := httptest.NewRecorder()
+	s.Routes().ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	for _, want := range []string{
+		"airpipe_build_info",
+		"airpipe_uptime_seconds",
+		"airpipe_active_files",
+		"airpipe_uploads_total",
+		"airpipe_rate_limited_total",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("metrics missing %s", want)
+		}
+	}
 }
 
 func TestUploadPageEndpoint(t *testing.T) {
 	s := newTestServer(t)
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /u/{token}", s.handleUploadPage)
 
 	req := httptest.NewRequest("GET", "/u/testtoken", nil)
 	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
+	s.Routes().ServeHTTP(w, req)
 
 	if w.Code != 200 {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -201,8 +231,7 @@ func TestUploadPageEndpoint(t *testing.T) {
 }
 
 func TestFileStoreRoundtrip(t *testing.T) {
-	fs := NewFileStore(context.Background(), newTestLogger(), 10*time.Minute)
-	defer fs.Shutdown()
+	fs := newTestFileStore(t)
 	content := []byte("hello airpipe")
 
 	token, err := fs.Store("test.txt", bytes.NewReader(content), "")
@@ -226,8 +255,7 @@ func TestFileStoreRoundtrip(t *testing.T) {
 }
 
 func TestFileStoreNotFound(t *testing.T) {
-	fs := NewFileStore(context.Background(), newTestLogger(), 10*time.Minute)
-	defer fs.Shutdown()
+	fs := newTestFileStore(t)
 	_, ok := fs.Get("nonexistent")
 	if ok {
 		t.Fatal("expected not found for nonexistent token")
@@ -236,11 +264,7 @@ func TestFileStoreNotFound(t *testing.T) {
 
 func TestUploadAndDownload(t *testing.T) {
 	s := newTestServer(t)
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /upload", s.handleUploadFile)
-	mux.HandleFunc("GET /d/{token}", s.handleDownloadPage)
-	mux.HandleFunc("GET /raw/{token}", s.handleRawDownload)
-	srv := httptest.NewServer(mux)
+	srv := httptest.NewServer(s.Routes())
 	defer srv.Close()
 
 	body := &bytes.Buffer{}
@@ -298,17 +322,21 @@ func TestUploadAndDownload(t *testing.T) {
 	if string(downloaded) != "ciphertext-bytes" {
 		t.Fatalf("expected 'ciphertext-bytes', got %q", string(downloaded))
 	}
+
+	if got := s.uploadsTotal.Load(); got != 1 {
+		t.Fatalf("uploadsTotal = %d, want 1", got)
+	}
+	if got := s.downloadsTotal.Load(); got != 1 {
+		t.Fatalf("downloadsTotal = %d, want 1", got)
+	}
 }
 
 func TestDownloadNotFound(t *testing.T) {
 	s := newTestServer(t)
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /d/{token}", s.handleDownloadPage)
-	mux.HandleFunc("GET /raw/{token}", s.handleRawDownload)
-	srv := httptest.NewServer(mux)
+	srv := httptest.NewServer(s.Routes())
 	defer srv.Close()
 
-	// /d/{token} now always returns 200; the page client-side probes /raw
+	// /d/{token} always returns 200; the page client-side probes /raw
 	// and falls back to live WS pairing if the mailbox blob isn't present.
 	resp, _ := http.Get(srv.URL + "/d/nonexistent")
 	if resp.StatusCode != 200 {
@@ -323,8 +351,8 @@ func TestDownloadNotFound(t *testing.T) {
 
 func TestOriginAllowlist(t *testing.T) {
 	log := newTestLogger()
-	cfg := config{
-		allowedOrigins: []string{"https://drop.volt-logik.io"},
+	cfg := Config{
+		AllowedOrigins: []string{"https://airpipe.sanyamgarg.com"},
 	}
 	check := originChecker(cfg, log)
 
@@ -333,13 +361,15 @@ func TestOriginAllowlist(t *testing.T) {
 		allow  bool
 	}{
 		{"", true}, // CLI clients (no Origin header)
-		{"https://drop.volt-logik.io", true},
-		{"https://DROP.VOLT-LOGIK.IO", true}, // case-insensitive match
+		{"https://airpipe.sanyamgarg.com", true},
+		{"https://AIRPIPE.SANYAMGARG.COM", true},
 		{"https://evil.example.com", false},
-		{"http://drop.volt-logik.io", false}, // scheme mismatch
+		{"http://airpipe.sanyamgarg.com", false}, // scheme mismatch
+		{"http://example.com", true},             // same-origin: matches request Host
+		{"http://localhost:8199", false},         // different host, not allowlisted
 	}
 	for _, c := range cases {
-		r := httptest.NewRequest("GET", "/ws/x", nil)
+		r := httptest.NewRequest("GET", "/ws/x", nil) // Host: example.com
 		if c.origin != "" {
 			r.Header.Set("Origin", c.origin)
 		}
@@ -347,12 +377,19 @@ func TestOriginAllowlist(t *testing.T) {
 			t.Errorf("origin %q: got allow=%v, want %v", c.origin, got, c.allow)
 		}
 	}
+
+	// Same-origin on a custom port.
+	r := httptest.NewRequest("GET", "http://localhost:8199/ws/x", nil)
+	r.Header.Set("Origin", "http://localhost:8199")
+	if !check(r) {
+		t.Error("same-origin on custom port should be allowed")
+	}
 }
 
 func TestRateLimit(t *testing.T) {
-	log := newTestLogger()
-	il := newIPLimiter(2) // 2 per minute = tight burst
-	handler := rateLimit(il, log, func(w http.ResponseWriter, r *http.Request) {
+	s := newTestServer(t)
+	s.rl = newIPLimiter(2) // 2 per minute = tight burst
+	handler := s.rateLimit(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
 
@@ -373,4 +410,78 @@ func TestRateLimit(t *testing.T) {
 	if code := call(); code != 429 {
 		t.Fatalf("third call should be rate-limited, got %d", code)
 	}
+	if got := s.rateLimitedTotal.Load(); got != 1 {
+		t.Fatalf("rateLimitedTotal = %d, want 1", got)
+	}
+}
+
+func TestConfigEnvOverrides(t *testing.T) {
+	t.Setenv("AIRPIPE_MAX_UPLOAD_MB", "100")
+	t.Setenv("AIRPIPE_FILE_EXPIRY", "30m")
+	t.Setenv("AIRPIPE_RATE_LIMIT_PER_MIN", "120")
+
+	cfg := LoadConfig()
+	if cfg.MaxUploadBytes != 100<<20 {
+		t.Fatalf("MaxUploadBytes = %d, want %d", cfg.MaxUploadBytes, int64(100)<<20)
+	}
+	if cfg.FileExpiry != 30*time.Minute {
+		t.Fatalf("FileExpiry = %s, want 30m", cfg.FileExpiry)
+	}
+	if cfg.RateLimitPerMin != 120 {
+		t.Fatalf("RateLimitPerMin = %d, want 120", cfg.RateLimitPerMin)
+	}
+}
+
+func TestConfigBadEnvFallsBack(t *testing.T) {
+	t.Setenv("AIRPIPE_MAX_UPLOAD_MB", "not-a-number")
+	t.Setenv("AIRPIPE_FILE_EXPIRY", "-5m")
+
+	cfg := LoadConfig()
+	if cfg.MaxUploadBytes != 500<<20 {
+		t.Fatalf("MaxUploadBytes = %d, want default", cfg.MaxUploadBytes)
+	}
+	if cfg.FileExpiry != 10*time.Minute {
+		t.Fatalf("FileExpiry = %s, want default 10m", cfg.FileExpiry)
+	}
+}
+
+func TestRoomStatusEndpoint(t *testing.T) {
+	s := newTestServer(t)
+	token := "00112233aabbccdd"
+
+	check := func(path string, wantStatus int, wantWaiting bool) {
+		t.Helper()
+		req := httptest.NewRequest("GET", path, nil)
+		req.SetPathValue("token", path[len("/room/"):])
+		w := httptest.NewRecorder()
+		s.handleRoomStatus(w, req)
+		if w.Code != wantStatus {
+			t.Fatalf("%s: status %d, want %d", path, w.Code, wantStatus)
+		}
+		if wantStatus != http.StatusOK {
+			return
+		}
+		var body struct {
+			Waiting bool `json:"waiting"`
+		}
+		if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.Waiting != wantWaiting {
+			t.Fatalf("%s: waiting %v, want %v", path, body.Waiting, wantWaiting)
+		}
+	}
+
+	check("/room/"+token, http.StatusOK, false)
+
+	room := s.roomManager.GetOrCreateRoom(token)
+	room.AddClient(&websocket.Conn{})
+	check("/room/"+token, http.StatusOK, true)
+
+	room.AddClient(&websocket.Conn{})
+	check("/room/"+token, http.StatusOK, false)
+
+	check("/room/not-a-token", http.StatusBadRequest, false)
+
+	s.roomManager.DeleteRoom(token)
 }

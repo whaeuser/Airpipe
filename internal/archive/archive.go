@@ -12,7 +12,7 @@ import (
 // path. Symlinks are skipped rather than followed: zipping a symlink to
 // /etc/passwd would otherwise include the target file's contents.
 func ZipPaths(paths []string) (string, error) {
-	tmp, err := os.CreateTemp("", "drop-*.zip")
+	tmp, err := os.CreateTemp("", "airpipe-*.zip")
 	if err != nil {
 		return "", err
 	}

@@ -8,8 +8,8 @@ import (
 
 func TestGenerate(t *testing.T) {
 	phrase := Generate()
-	// Format: "WORD WORD NN"
-	pattern := regexp.MustCompile(`^[A-Z]+ [A-Z]+ \d{2}$`)
+	// Format: "WORD WORD WORD WORD NN"
+	pattern := regexp.MustCompile(`^[A-Z]+ [A-Z]+ [A-Z]+ [A-Z]+ \d{2}$`)
 	if !pattern.MatchString(phrase) {
 		t.Fatalf("Generate() = %q, doesn't match expected pattern", phrase)
 	}
@@ -121,5 +121,20 @@ func TestWordlistSize(t *testing.T) {
 			t.Fatalf("Duplicate word in wordlist: %s", w)
 		}
 		seen[w] = true
+	}
+}
+
+func TestDeriveReceiveTokenDistinct(t *testing.T) {
+	phrase := "RIVER FALCON MARBLE 42"
+	dl := DeriveToken(phrase)
+	recv := DeriveReceiveToken(phrase)
+	if dl == recv {
+		t.Fatal("receive token must not collide with download token")
+	}
+	if len(recv) != 16 {
+		t.Fatalf("token length %d, want 16", len(recv))
+	}
+	if recv != DeriveReceiveToken("river falcon  marble 42") {
+		t.Fatal("normalization must apply to receive tokens")
 	}
 }

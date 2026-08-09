@@ -12,8 +12,6 @@
   --accent-strong: #E54600;
   --accent-soft: rgba(255, 79, 0, 0.08);
   --accent-line: rgba(255, 79, 0, 0.3);
-  --success: #3ED598;
-  --success-glow: rgba(62, 213, 152, 0.6);
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --sans: 'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   --display: 'JetBrains Mono', ui-monospace, monospace;
@@ -96,18 +94,20 @@ a:hover { color: var(--accent); }
 }
 .strip-cell.status.live { color: var(--fg); }
 .strip-cell.status.live .dot {
-  background: var(--success);
+  background: var(--accent);
   animation: blink 1.2s step-end infinite;
-  box-shadow: 0 0 8px var(--success-glow);
+  box-shadow: 0 0 8px rgba(255, 79, 0, 0.6);
 }
 .strip-cell.status.err { color: var(--accent); }
 .strip-cell.status.err .dot { background: var(--accent); }
 
 @keyframes blink { 50% { opacity: 0.25; } }
 
-.port-btn { color: var(--muted); }
+.port-btn { color: var(--muted); padding: 14px 0; }
 .port-btn:hover { color: var(--accent); text-decoration: none; }
 .port-btn .arrow { font-size: 0.9rem; margin-left: 2px; }
+.gh-btn { display: inline-flex; align-items: center; gap: 8px; }
+.gh-stars { color: var(--accent); }
 
 /* layout */
 .grid {
@@ -299,6 +299,17 @@ a:hover { color: var(--accent); }
   border-color: var(--accent-strong);
   filter: brightness(1.05);
 }
+.cta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.batch-actions {
+  margin-top: 20px;
+}
+.batch-actions .cta {
+  min-width: 220px;
+}
 
 /* passphrase row (homepage redeem) */
 .phrase-row {
@@ -364,7 +375,7 @@ a:hover { color: var(--accent); }
   font-weight: 600;
 }
 .drop-hint {
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   color: var(--muted);
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -508,14 +519,14 @@ input[type=file] { display: none; }
   user-select: all;
 }
 .phrase-display .phrase-hint {
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   color: var(--muted);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-family: var(--mono);
 }
 
-/* QR canvas — kept light for camera scan reliability */
+/* QR canvas, kept light so phones scan it cleanly */
 .qr-wrap {
   display: flex;
   justify-content: center;
@@ -540,7 +551,7 @@ input[type=file] { display: none; }
   max-height: 320px;
 }
 
-/* SVG nodes — used by hero animation */
+/* SVG nodes for the hero diagram */
 .node rect {
   fill: var(--surface);
   stroke: var(--fg);
@@ -984,7 +995,7 @@ input[type=file] { display: none; }
   .section-head .section-rule { display: none; }
 }
 
-/* bottom strip — quiet, sentence case, low volume */
+/* bottom strip */
 .bottom-strip {
   position: relative;
   z-index: 1;
@@ -1204,6 +1215,51 @@ input[type=file] { display: none; }
 }
 .host-clean .host-cmd .code-line { margin-bottom: 0; }
 
+.roadmap-clean {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 56px 48px 80px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: start;
+}
+.roadmap-clean .roadmap-text { max-width: 480px; }
+.roadmap-clean h2 {
+  font-family: var(--sans);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  margin: 0 0 14px;
+}
+.roadmap-clean p {
+  font-family: var(--sans);
+  font-size: 1rem;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+.roadmap-list { list-style: none; font-family: var(--sans); font-size: 1rem; color: var(--fg); }
+.roadmap-list li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.roadmap-list li:last-child { border-bottom: 0; }
+.roadmap-list li::before { content: '+'; color: var(--accent); font-family: var(--mono); }
+.roadmap-tag {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-diagram svg animate { display: none; }
 }
@@ -1225,14 +1281,27 @@ input[type=file] { display: none; }
     padding: 40px 32px 60px;
   }
   .host-clean .host-text { max-width: 600px; }
+  .roadmap-clean {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 40px 32px 60px;
+  }
+  .roadmap-clean .roadmap-text { max-width: 600px; }
 }
 
 @media (max-width: 640px) {
   .hero-clean { padding: 40px 20px 40px; }
   .host-clean { padding: 32px 20px 48px; }
+  .roadmap-clean { padding: 32px 20px 48px; }
 }
 
 
-/* iframe-Einbettung: Header und Footer ausblenden */
-html.embedded .top-strip,
-html.embedded .bottom-strip { display: none; }
+/* mobile: env table stacks, 16px inputs stop iOS zoom-on-focus */
+@media (max-width: 540px) {
+  .host-env { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .phrase-input,
+  .hero-phrase .phrase-input,
+  .hero-clean .hero-phrase .phrase-input { font-size: 16px; }
+}
