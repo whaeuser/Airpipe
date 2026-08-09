@@ -244,10 +244,10 @@ func shortToken(t string) string {
 }
 
 type Room struct {
-	token     string
-	clients   []*websocket.Conn
-	mu        sync.Mutex
-	createdAt time.Time
+	token        string
+	clients      []*websocket.Conn
+	mu           sync.Mutex
+	lastActivity time.Time
 }
 
 type RoomManager struct {
@@ -276,7 +276,7 @@ func (rm *RoomManager) GetOrCreateRoom(token string) *Room {
 	if room, exists := rm.rooms[token]; exists {
 		return room
 	}
-	room := &Room{token: token, clients: make([]*websocket.Conn, 0, 2), createdAt: time.Now()}
+	room := &Room{token: token, clients: make([]*websocket.Conn, 0, 2), lastActivity: time.Now()}
 	rm.rooms[token] = room
 	return room
 }
@@ -301,14 +301,17 @@ func (rm *RoomManager) cleanupLoop() {
 		case <-ticker.C:
 			rm.mu.Lock()
 			for token, room := range rm.rooms {
-				if time.Since(room.createdAt) > 10*time.Minute {
-					room.mu.Lock()
+				room.mu.Lock()
+				idle := time.Since(room.lastActivity)
+				if idle > 10*time.Minute {
 					for _, conn := range room.clients {
 						conn.Close()
 					}
 					room.mu.Unlock()
 					delete(rm.rooms, token)
+					continue
 				}
+				room.mu.Unlock()
 			}
 			rm.mu.Unlock()
 		case <-rm.ctx.Done():
@@ -337,6 +340,7 @@ func (room *Room) AddClient(conn *websocket.Conn) bool {
 		return false
 	}
 	room.clients = append(room.clients, conn)
+	room.lastActivity = time.Now()
 	return true
 }
 
@@ -354,6 +358,7 @@ func (room *Room) RemoveClient(conn *websocket.Conn) {
 func (room *Room) Broadcast(sender *websocket.Conn, message []byte) {
 	room.mu.Lock()
 	defer room.mu.Unlock()
+	room.lastActivity = time.Now()
 	for _, conn := range room.clients {
 		if conn != sender {
 			_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
