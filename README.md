@@ -44,7 +44,7 @@ The relay reports config and stats at `/health` (JSON) and `/metrics` (Prometheu
 ## CLI
 
 ```bash
-curl -sSL https://your-relay.example/install.sh | sh   # or: go install github.com/whaeuser/Airpipe/cmd/drop@latest
+curl -sSL https://drop.volt-logik.io/install.sh | sh
 ```
 
 Linux, macOS, Windows (amd64 + arm64). Self-update with `drop update`.
@@ -58,7 +58,7 @@ drop receive ./downloads          # wait for someone to send to you; prints a QR
 
 ## Browser to browser
 
-Open [`/live`](https://your-relay.example/live) for a passphrase + QR, no install on either side. The receiver enters it at the homepage and the file transfers between the two browsers.
+Open [`/live`](https://drop.volt-logik.io/live) for a passphrase + QR, no install on either side. The receiver enters it at the homepage and the file transfers between the two browsers.
 
 ## Encryption
 
