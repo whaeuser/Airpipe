@@ -75,5 +75,5 @@ func printHelp() {
 
 	fmt.Printf("%sLinks%s\n", b, r)
 	fmt.Printf("  Source        github.com/whaeuser/Airpipe\n")
-	fmt.Printf("  Web sender    https://drop.example.com\n\n")
+	fmt.Printf("  Web sender    https://drop.volt-logik.io\n\n")
 }

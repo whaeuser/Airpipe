@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const defaultRelay = "https://drop.example.com"
+const defaultRelay = "https://drop.volt-logik.io"
 
 // buildVersion is set via -ldflags at build time.
 var buildVersion = "dev"
