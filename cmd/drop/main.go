@@ -64,9 +64,8 @@ func main() {
 		printHelp()
 		return
 	default:
-		fmt.Printf("Unknown command: %s\n\n", args[0])
-		printUsage()
-		os.Exit(1)
+		// Bare file arguments are an implicit send: `drop file.txt` == `drop send file.txt`.
+		err = cmdSend(*relay, args)
 	}
 
 	if err != nil {
