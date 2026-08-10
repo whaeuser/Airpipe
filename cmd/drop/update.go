@@ -8,7 +8,30 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
+
+// latestTag resolves github.com/whaeuser/Airpipe/releases/latest's redirect
+// to read off the tag name, without following it — e.g. Location:
+// https://github.com/whaeuser/Airpipe/releases/tag/v4.5.0 -> "v4.5.0".
+func latestTag() string {
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := client.Get("https://github.com/whaeuser/Airpipe/releases/latest")
+	if err != nil {
+		return ""
+	}
+	resp.Body.Close()
+	loc := resp.Header.Get("Location")
+	parts := strings.Split(loc, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return ""
+}
 
 func cmdUpdate() error {
 	banner("update")
@@ -19,9 +42,15 @@ func cmdUpdate() error {
 	if goos == "windows" {
 		ext = ".exe"
 	}
-	url := fmt.Sprintf("https://github.com/whaeuser/Airpipe/releases/latest/download/drop-%s-%s%s", goos, goarch, ext)
+
+	tag := latestTag()
 
 	fmt.Printf("  Current: %s%s%s\n", colorDim, buildVersion, colorReset)
+	if tag != "" {
+		fmt.Printf("  Latest:  %s%s%s\n", colorBold, tag, colorReset)
+	}
+	url := fmt.Sprintf("https://github.com/whaeuser/Airpipe/releases/latest/download/drop-%s-%s%s", goos, goarch, ext)
+
 	fmt.Printf("  Downloading latest for %s/%s...\n", goos, goarch)
 
 	resp, err := http.Get(url)
@@ -72,7 +101,7 @@ func cmdUpdate() error {
 			}
 			os.Remove(tmpPath)
 		}
-		fmt.Printf("  %s✓ Updated %s%s (%s)\n", colorGreen, execPath, colorReset, fmtBytes(int64(len(binary))))
+		fmt.Printf("  %s✓ Updated to %s%s%s  %s%s%s  (%s)\n", colorGreen, colorBold, versionLabel(tag), colorReset, colorDim, execPath, colorReset, fmtBytes(int64(len(binary))))
 		fmt.Printf("  %sDelete %s once no drop is running.%s\n\n", colorDim, old, colorReset)
 		return nil
 	}
@@ -103,8 +132,17 @@ func cmdUpdate() error {
 		}
 	}
 
-	fmt.Printf("  %s✓ Updated %s%s (%s)\n\n", colorGreen, execPath, colorReset, fmtBytes(int64(len(binary))))
+	fmt.Printf("  %s✓ Updated to %s%s%s  %s%s%s  (%s)\n\n", colorGreen, colorBold, versionLabel(tag), colorReset, colorDim, execPath, colorReset, fmtBytes(int64(len(binary))))
 	return nil
+}
+
+// versionLabel falls back to "latest" if the GitHub redirect lookup failed,
+// so the success line still reads sensibly instead of printing an empty tag.
+func versionLabel(tag string) string {
+	if tag == "" {
+		return "latest"
+	}
+	return tag
 }
 
 func copyFile(src, dst string) error {
