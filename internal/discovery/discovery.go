@@ -17,12 +17,22 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/mdns"
 )
+
+// silentLogger swallows the mdns library's own stderr chatter (defaults to
+// log.Default() otherwise). It's noisy in ways that don't reflect real
+// failures here — e.g. it logs "Failed to listen ... on IPv6" whenever IPv6
+// wasn't attempted at all, which is always the case since we pass
+// DisableIPv6 below. Actual failures are reported through this package's
+// own return values, which is what callers should act on.
+var silentLogger = log.New(io.Discard, "", 0)
 
 const (
 	serviceType = "_drop._tcp"
@@ -85,7 +95,7 @@ func (mdnsAdvertiser) Advertise(ctx context.Context, rec ServiceRecord) error {
 	if err != nil {
 		return fmt.Errorf("mdns service: %w", err)
 	}
-	server, err := mdns.NewServer(&mdns.Config{Zone: svc})
+	server, err := mdns.NewServer(&mdns.Config{Zone: svc, Logger: silentLogger})
 	if err != nil {
 		return fmt.Errorf("mdns server: %w", err)
 	}
@@ -123,6 +133,7 @@ func (mdnsBrowser) Browse(ctx context.Context, timeout time.Duration) ([]Service
 		// in-flight, otherwise-working IPv4 query. IPv4 alone covers the
 		// LAN-discovery use case this package exists for.
 		DisableIPv6: true,
+		Logger:      silentLogger,
 	})
 	close(entriesCh)
 	<-done
