@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ func TestFakeHubRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rec := ServiceRecord{Instance: "Sanyams-Laptop", Token: "abcdef0123456789", Label: "3 files", Version: 4}
+	rec := ServiceRecord{Instance: "Sanyams-Laptop", Token: "abcdef0123456789", Key: []byte("some-32-byte-key"), Label: "3 files", Version: 4}
 	if err := hub.Advertiser().Advertise(ctx, rec); err != nil {
 		t.Fatalf("advertise: %v", err)
 	}
@@ -23,7 +24,7 @@ func TestFakeHubRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("browse: %v", err)
 	}
-	if len(got) != 1 || got[0] != rec {
+	if len(got) != 1 || !reflect.DeepEqual(got[0], rec) {
 		t.Fatalf("browse result = %+v, want [%+v]", got, rec)
 	}
 
@@ -44,7 +45,7 @@ func TestFakeHubsDoNotCrossTalk(t *testing.T) {
 	hubB := NewFakeHub()
 	ctx := context.Background()
 
-	if err := hubA.Advertiser().Advertise(ctx, ServiceRecord{Token: "on-hub-a"}); err != nil {
+	if err := hubA.Advertiser().Advertise(ctx, ServiceRecord{Token: "on-hub-a", Key: []byte("k")}); err != nil {
 		t.Fatalf("advertise: %v", err)
 	}
 	got, err := hubB.Browser().Browse(ctx, time.Second)
@@ -56,17 +57,17 @@ func TestFakeHubsDoNotCrossTalk(t *testing.T) {
 	}
 }
 
-// This is the security-relevant property of the whole package: nothing
-// derived from the raw passphrase or the NaCl key is ever allowed onto the
-// wire beyond the token. ServiceRecord's field set is itself the contract
-// (no Passphrase/Key field exists to leak), and parseEntry only ever reads
-// the "v", "t", "n" TXT keys this package itself writes in Advertise.
-func TestParseEntryOnlyReadsKnownKeys(t *testing.T) {
+// The trust boundary this package implements: the token AND the key both go
+// out over mDNS (see the package doc comment for why), so parseEntry must
+// read both — and reject a record missing either, since a keyless record is
+// something this package never advertised.
+func TestParseEntryReadsTokenAndKey(t *testing.T) {
 	entry := &mdns.ServiceEntry{
 		Name: "Sanyams-Laptop." + serviceType + "." + domain,
 		InfoFields: []string{
 			"v=4",
 			"t=abcdef0123456789",
+			"k=" + "0011223344556677",
 			"n=3 files",
 			"passphrase=RIVER FALCON MARBLE 42", // must be ignored: not a key we ever emit or read
 		},
@@ -81,32 +82,46 @@ func TestParseEntryOnlyReadsKnownKeys(t *testing.T) {
 	if rec.Token != "abcdef0123456789" || rec.Label != "3 files" || rec.Version != 4 {
 		t.Fatalf("record mismatch: %+v", rec)
 	}
+	if string(rec.Key) != "\x00\x11\x22\x33\x44\x55\x66\x77" {
+		t.Fatalf("Key = %x, want decoded 0011223344556677", rec.Key)
+	}
 }
 
 func TestParseEntryRejectsMissingToken(t *testing.T) {
 	entry := &mdns.ServiceEntry{
 		Name:       "Sanyams-Laptop." + serviceType + "." + domain,
-		InfoFields: []string{"v=4", "n=3 files"},
+		InfoFields: []string{"v=4", "k=00112233", "n=3 files"},
 	}
 	if _, ok := parseEntry(entry); ok {
 		t.Fatal("expected a record with no token to be rejected")
 	}
 }
 
-func TestAdvertiseTXTNeverContainsExtraKeys(t *testing.T) {
-	// Guard against a future edit accidentally adding a new field to
-	// ServiceRecord (e.g. a Passphrase or Key) without updating Advertise
-	// to keep it off the wire: build the TXT records the same way Advertise
-	// does and assert only v=/t=/n= keys ever appear.
-	rec := ServiceRecord{Instance: "host", Token: "tok", Label: "label", Version: 4}
+func TestParseEntryRejectsMissingKey(t *testing.T) {
+	entry := &mdns.ServiceEntry{
+		Name:       "Sanyams-Laptop." + serviceType + "." + domain,
+		InfoFields: []string{"v=4", "t=abcdef0123456789", "n=3 files"},
+	}
+	if _, ok := parseEntry(entry); ok {
+		t.Fatal("expected a record with no key to be rejected")
+	}
+}
+
+func TestAdvertiseTXTCarriesTokenAndKey(t *testing.T) {
+	// Advertise deliberately puts both the token and the hex-encoded key on
+	// the wire (see the package doc comment: the LAN is the trust boundary,
+	// not the passphrase). This guards the encoding stays hex/parseable and
+	// no unexpected key shows up.
+	rec := ServiceRecord{Instance: "host", Token: "tok", Key: []byte{0x00, 0x11}, Label: "label", Version: 4}
 	txt := []string{
 		"v=" + string(rune('0'+rec.Version)),
 		"t=" + rec.Token,
+		"k=0011",
 		"n=" + rec.Label,
 	}
 	for _, field := range txt {
 		key, _, ok := strings.Cut(field, "=")
-		if !ok || (key != "v" && key != "t" && key != "n") {
+		if !ok || (key != "v" && key != "t" && key != "k" && key != "n") {
 			t.Fatalf("unexpected TXT key in %q", field)
 		}
 	}

@@ -9,37 +9,36 @@ import (
 	"github.com/whaeuser/drop/internal/passphrase"
 )
 
-func TestSelectSenderCorrectPassphrase(t *testing.T) {
+func TestSelectSenderReturnsChosenRecord(t *testing.T) {
 	phrase := "RIVER FALCON MARBLE 42"
+	key := passphrase.DeriveKey(phrase)
 	records := []discovery.ServiceRecord{
-		{Instance: "Erics-Desktop", Token: "wrong-token-aaaa"},
-		{Instance: "Sanyams-Laptop", Token: passphrase.DeriveToken(phrase)},
+		{Instance: "Erics-Desktop", Token: "some-other-token", Key: []byte("decoy-key-0000000000000000000000")},
+		{Instance: "Sanyams-Laptop", Token: passphrase.DeriveToken(phrase), Key: key[:]},
 	}
 
-	in := strings.NewReader("2\n" + phrase + "\n")
-	chosen, token, key, err := selectSender(records, in)
+	in := strings.NewReader("2\n")
+	chosen, err := selectSender(records, in)
 	if err != nil {
 		t.Fatalf("selectSender failed: %v", err)
 	}
 	if chosen.Instance != "Sanyams-Laptop" {
 		t.Fatalf("chosen = %+v, want Sanyams-Laptop", chosen)
 	}
-	if token != passphrase.DeriveToken(phrase) {
-		t.Fatalf("token mismatch: got %q", token)
+	if chosen.Token != passphrase.DeriveToken(phrase) {
+		t.Fatalf("token mismatch: got %q", chosen.Token)
 	}
-	wantKey := passphrase.DeriveKey(phrase)
-	if len(key) != 32 || string(key) != string(wantKey[:]) {
-		t.Fatal("derived key mismatch")
+	if string(chosen.Key) != string(key[:]) {
+		t.Fatal("key mismatch")
 	}
 }
 
 func TestSelectSenderDefaultsToFirstChoice(t *testing.T) {
-	phrase := "OCEAN TIGER STORM 77"
 	records := []discovery.ServiceRecord{
-		{Instance: "OnlySender", Token: passphrase.DeriveToken(phrase)},
+		{Instance: "OnlySender", Token: "sometoken", Key: []byte("k")},
 	}
-	in := strings.NewReader("\n" + phrase + "\n") // empty line -> default choice 1
-	chosen, _, _, err := selectSender(records, in)
+	in := strings.NewReader("\n") // empty line -> default choice 1
+	chosen, err := selectSender(records, in)
 	if err != nil {
 		t.Fatalf("selectSender failed: %v", err)
 	}
@@ -48,31 +47,10 @@ func TestSelectSenderDefaultsToFirstChoice(t *testing.T) {
 	}
 }
 
-// The whole point of local verification: a wrong passphrase for the chosen
-// sender must be rejected before any network connection is attempted, and
-// it must never be confused with a *different* advertised sender's token.
-func TestSelectSenderWrongPassphraseRejected(t *testing.T) {
-	records := []discovery.ServiceRecord{
-		{Instance: "Sanyams-Laptop", Token: passphrase.DeriveToken("RIVER FALCON MARBLE 42")},
-	}
-	in := strings.NewReader("1\nTOTALLY WRONG PHRASE 99\n")
-	if _, _, _, err := selectSender(records, in); err == nil {
-		t.Fatal("expected an error for a passphrase that doesn't match the chosen record's token")
-	}
-}
-
-func TestSelectSenderEmptyPassphraseRejected(t *testing.T) {
-	records := []discovery.ServiceRecord{{Instance: "X", Token: "sometoken"}}
-	in := strings.NewReader("1\n\n")
-	if _, _, _, err := selectSender(records, in); err == nil {
-		t.Fatal("expected an error for an empty passphrase")
-	}
-}
-
 func TestSelectSenderOutOfRangeChoiceRejected(t *testing.T) {
-	records := []discovery.ServiceRecord{{Instance: "X", Token: "sometoken"}}
-	in := strings.NewReader("5\nirrelevant\n")
-	if _, _, _, err := selectSender(records, in); err == nil {
+	records := []discovery.ServiceRecord{{Instance: "X", Token: "sometoken", Key: []byte("k")}}
+	in := strings.NewReader("5\n")
+	if _, err := selectSender(records, in); err == nil {
 		t.Fatal("expected an error for an out-of-range menu choice")
 	}
 }
@@ -97,19 +75,21 @@ func TestParseChoice(t *testing.T) {
 
 // End-to-end sanity that discovery.FakeHub + selectSender compose: a sender
 // advertises on a fake hub, a receiver browses the same hub and correctly
-// picks it out among a decoy.
+// picks it out among a decoy, getting back the token+key needed to connect
+// with no further prompt.
 func TestDiscoverFakeHubIntegration(t *testing.T) {
 	hub := discovery.NewFakeHub()
 	phrase := "OCEAN TIGER STORM 77"
+	key := passphrase.DeriveKey(phrase)
 	ctx := context.Background()
 
 	if err := hub.Advertiser().Advertise(ctx, discovery.ServiceRecord{
-		Instance: "Decoy", Token: "decoy-token-0000",
+		Instance: "Decoy", Token: "decoy-token-0000", Key: []byte("decoy-key-000000000000000000000"),
 	}); err != nil {
 		t.Fatalf("advertise decoy: %v", err)
 	}
 	if err := hub.Advertiser().Advertise(ctx, discovery.ServiceRecord{
-		Instance: "RealSender", Token: passphrase.DeriveToken(phrase), Label: "1 file",
+		Instance: "RealSender", Token: passphrase.DeriveToken(phrase), Key: key[:], Label: "1 file",
 	}); err != nil {
 		t.Fatalf("advertise real sender: %v", err)
 	}
@@ -122,7 +102,8 @@ func TestDiscoverFakeHubIntegration(t *testing.T) {
 		t.Fatalf("expected 2 records, got %d", len(records))
 	}
 
-	// Pick whichever index is "RealSender" and verify against its passphrase.
+	// Pick whichever index is "RealSender" and verify its token+key came
+	// through untouched.
 	var wantIdx int
 	for i, r := range records {
 		if r.Instance == "RealSender" {
@@ -133,13 +114,19 @@ func TestDiscoverFakeHubIntegration(t *testing.T) {
 		t.Fatal("RealSender not found in browse results")
 	}
 
-	in := strings.NewReader(itoa(wantIdx) + "\n" + phrase + "\n")
-	chosen, _, _, err := selectSender(records, in)
+	in := strings.NewReader(itoa(wantIdx) + "\n")
+	chosen, err := selectSender(records, in)
 	if err != nil {
 		t.Fatalf("selectSender: %v", err)
 	}
 	if chosen.Instance != "RealSender" {
 		t.Fatalf("chosen = %+v, want RealSender", chosen)
+	}
+	if chosen.Token != passphrase.DeriveToken(phrase) {
+		t.Fatalf("token mismatch: got %q", chosen.Token)
+	}
+	if string(chosen.Key) != string(key[:]) {
+		t.Fatal("key mismatch")
 	}
 }
 

@@ -46,9 +46,9 @@ func printHelp() {
 	fmt.Printf("        in the destination dir (sender must retry with the same %s--resume-passphrase%s).\n\n", b, r)
 
 	fmt.Printf("  %sdiscover%s [--stay-open] [dir]\n", b, r)
-	fmt.Printf("      Look for %ssend%s sessions on the LAN (mDNS) instead of typing a passphrase blind.\n", b, r)
-	fmt.Printf("      Pick a sender from the list, then still enter its passphrase to connect —\n")
-	fmt.Printf("      discovery only narrows down %swho%s, it never transmits the passphrase itself.\n", b, r)
+	fmt.Printf("      Look for %ssend%s sessions on the LAN (mDNS) and connect straight to the one you\n", b, r)
+	fmt.Printf("      pick — no passphrase prompt. Anyone on the same LAN segment can see and pick\n")
+	fmt.Printf("      up a session this way; use %sdrop download <passphrase>%s if that's not wanted.\n", b, r)
 	fmt.Printf("      Falls back to suggesting %sdrop download%s if nothing is found.\n\n", b, r)
 
 	fmt.Printf("  %supdate%s\n", b, r)

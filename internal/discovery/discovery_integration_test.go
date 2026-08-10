@@ -16,7 +16,7 @@ func TestRealMDNSRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rec := ServiceRecord{Instance: "integration-test-host", Token: "0123456789abcdef", Version: 4}
+	rec := ServiceRecord{Instance: "integration-test-host", Token: "0123456789abcdef", Key: []byte("0123456789abcdef0123456789abcdef"), Version: 4}
 	if err := NewAdvertiser().Advertise(ctx, rec); err != nil {
 		t.Fatalf("advertise: %v", err)
 	}

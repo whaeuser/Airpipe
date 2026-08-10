@@ -1,13 +1,21 @@
 // Package discovery lets a `drop send` narrow down which sender a receiver
 // on the same LAN is looking for, via mDNS. It is purely a UX shortcut in
-// front of the existing relay-signaled transfer: it never carries the
-// passphrase or the encryption key, and a failure here never blocks or
-// fails a transfer — `drop download <passphrase>` keeps working exactly as
-// before regardless of whether discovery succeeds.
+// front of the existing relay-signaled transfer, and a failure here never
+// blocks or fails a transfer — `drop download <passphrase>` keeps working
+// exactly as before regardless of whether discovery succeeds.
+//
+// The advertised record includes the encryption key itself, so anyone who
+// can see the mDNS multicast (i.e. anyone on the same LAN/WiFi segment) can
+// pick the sender from `drop discover` and receive without ever being told
+// the passphrase. This is a deliberate trust boundary: the LAN itself is
+// treated as the shared secret, not the passphrase. `drop download
+// <passphrase>` remains the option when that's not an acceptable trade-off
+// (untrusted/guest network segments that still relay mDNS).
 package discovery
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -27,14 +35,12 @@ const (
 )
 
 // ServiceRecord is what a sender advertises and a receiver discovers on the
-// LAN. Only the derived room token goes out over multicast — never the
-// passphrase or the NaCl key. The token alone lets a listener find/join the
-// relay-signaled WS room, but it can't decrypt anything without the key,
-// which comes from a separate SHA-256 domain (see internal/passphrase) —
-// so broadcasting it on the LAN costs nothing.
+// LAN: the room token and the NaCl key, hex-encoded, so a receiver can
+// connect straight from the `drop discover` menu with no passphrase prompt.
 type ServiceRecord struct {
 	Instance string // human-readable label, defaults to hostname
 	Token    string // passphrase.DeriveToken(...) output
+	Key      []byte // passphrase.DeriveKey(...) output, 32 bytes
 	Label    string // optional cosmetic hint (filename, file count) - never secret
 	Version  byte   // transfer.ProtocolVersion at advertise time
 }
@@ -69,6 +75,7 @@ func (mdnsAdvertiser) Advertise(ctx context.Context, rec ServiceRecord) error {
 	txt := []string{
 		fmt.Sprintf("v=%d", rec.Version),
 		fmt.Sprintf("t=%s", rec.Token),
+		fmt.Sprintf("k=%s", hex.EncodeToString(rec.Key)),
 	}
 	if rec.Label != "" {
 		txt = append(txt, fmt.Sprintf("n=%s", rec.Label))
@@ -141,12 +148,16 @@ func parseEntry(e *mdns.ServiceEntry) (ServiceRecord, bool) {
 			}
 		case "t":
 			rec.Token = val
+		case "k":
+			if key, err := hex.DecodeString(val); err == nil {
+				rec.Key = key
+			}
 		case "n":
 			rec.Label = val
 		}
 	}
-	// A record without a token is useless (and never one we advertised).
-	if rec.Token == "" {
+	// A record without a token or key is useless (and never one we advertised).
+	if rec.Token == "" || len(rec.Key) == 0 {
 		return ServiceRecord{}, false
 	}
 	return rec, true

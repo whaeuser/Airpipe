@@ -11,19 +11,17 @@ import (
 	"time"
 
 	"github.com/whaeuser/drop/internal/discovery"
-	"github.com/whaeuser/drop/internal/passphrase"
 	"github.com/whaeuser/drop/internal/transfer"
 )
 
 const discoverBrowseTimeout = 4 * time.Second
 
 // cmdDiscover browses the LAN for active `drop send` sessions via mDNS and
-// lets the user pick one instead of typing/scanning a passphrase blind. It
-// narrows down *which* sender to talk to; the passphrase is still required
-// and is verified locally (DeriveToken match) before any connection is
-// attempted — see internal/discovery for why the passphrase itself never
-// goes out over mDNS. If discovery finds nothing, this points back at the
-// always-available `drop download <passphrase>` fallback.
+// connects straight to the one the user picks — no passphrase prompt, since
+// the advertised record already carries the room token and key (see
+// internal/discovery for the trust boundary that implies). If discovery
+// finds nothing, this points back at the always-available
+// `drop download <passphrase>` fallback.
 func cmdDiscover(relay string, args []string) error {
 	stayOpen, rest := parseStayOpenFlags(args)
 	destDir := "."
@@ -53,11 +51,12 @@ func cmdDiscover(relay string, args []string) error {
 		fmt.Printf("    %s[%d]%s %s\n", colorBrand, i+1, colorReset, label)
 	}
 
-	_, derivedToken, derivedKey, err := selectSender(records, os.Stdin)
+	chosen, err := selectSender(records, os.Stdin)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("  %s✓ Passphrase verified%s\n\n", colorGreen, colorReset)
+	derivedToken, derivedKey := chosen.Token, chosen.Key
+	fmt.Printf("  %s✓ Connecting to %s%s\n\n", colorGreen, chosen.Instance, colorReset)
 
 	wsRelay := toWS(relay)
 	receiver := transfer.NewReceiver(wsRelay, derivedToken, derivedKey)
@@ -103,36 +102,19 @@ func fallbackHint() error {
 	return nil
 }
 
-// selectSender prompts (via in) for a menu choice among records, then a
-// passphrase for the chosen one, and verifies DeriveToken(phrase) matches
-// the record's advertised token before returning — this is the only place
-// discovery's mDNS-carried token gets cross-checked against a real
-// passphrase, so a wrong guess or a stale/spoofed record is rejected
-// locally, before any network connection is attempted.
-func selectSender(records []discovery.ServiceRecord, in io.Reader) (discovery.ServiceRecord, string, []byte, error) {
+// selectSender prompts (via in) for a menu choice among records and returns
+// the chosen one directly — it already carries the token and key needed to
+// connect.
+func selectSender(records []discovery.ServiceRecord, in io.Reader) (discovery.ServiceRecord, error) {
 	reader := bufio.NewReader(in)
 
 	fmt.Printf("\n  Choose %s[1]%s: ", colorBrand, colorReset)
 	choiceLine, _ := reader.ReadString('\n')
 	idx, err := parseChoice(strings.TrimSpace(choiceLine), len(records))
 	if err != nil {
-		return discovery.ServiceRecord{}, "", nil, err
+		return discovery.ServiceRecord{}, err
 	}
-	chosen := records[idx]
-
-	fmt.Printf("  Passphrase for %s%s%s: ", colorBold, chosen.Instance, colorReset)
-	phraseLine, _ := reader.ReadString('\n')
-	phrase := strings.TrimSpace(phraseLine)
-	if phrase == "" {
-		return discovery.ServiceRecord{}, "", nil, fmt.Errorf("no passphrase entered")
-	}
-
-	derivedToken := passphrase.DeriveToken(phrase)
-	if derivedToken != chosen.Token {
-		return discovery.ServiceRecord{}, "", nil, fmt.Errorf("that passphrase doesn't match %s — double check and try again", chosen.Instance)
-	}
-	keyArr := passphrase.DeriveKey(phrase)
-	return chosen, derivedToken, keyArr[:], nil
+	return records[idx], nil
 }
 
 // parseChoice parses a 1-based menu selection; an empty string defaults to 1.

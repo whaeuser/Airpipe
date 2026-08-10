@@ -225,18 +225,20 @@ func sendMailboxNative(httpRelay string, paths []string, phrase, derivedToken st
 	return nil
 }
 
-// advertiseOnLAN broadcasts an mDNS record so `drop discover` can find this
-// sender without the passphrase being typed anywhere. It never carries the
-// passphrase or key (see internal/discovery) and never affects the send:
-// any failure (blocked multicast, disabled interface) is just noted on
-// stderr, since drop download <passphrase> keeps working either way.
-func advertiseOnLAN(ctx context.Context, paths []string, derivedToken string) {
+// advertiseOnLAN broadcasts an mDNS record so `drop discover` can find and
+// connect straight to this sender, no passphrase typed on the receiving
+// end (see internal/discovery for the trust boundary this implies: anyone
+// on the LAN segment can pick it up). Never affects the send itself: any
+// failure (blocked multicast, disabled interface) is just noted on stderr,
+// since drop download <passphrase> keeps working either way.
+func advertiseOnLAN(ctx context.Context, paths []string, derivedToken string, derivedKey []byte) {
 	label := filepath.Base(paths[0])
 	if len(paths) > 1 {
 		label = fmt.Sprintf("%d files", len(paths))
 	}
 	err := discovery.NewAdvertiser().Advertise(ctx, discovery.ServiceRecord{
 		Token:   derivedToken,
+		Key:     derivedKey,
 		Label:   label,
 		Version: transfer.ProtocolVersion,
 	})
@@ -254,7 +256,7 @@ func sendP2P(wsRelay, httpRelay string, paths []string, phrase, derivedToken str
 
 	discCtx, discCancel := context.WithCancel(context.Background())
 	defer discCancel()
-	go advertiseOnLAN(discCtx, paths, derivedToken)
+	go advertiseOnLAN(discCtx, paths, derivedToken, derivedKey)
 
 	sender := transfer.NewSender(wsRelay, derivedToken, derivedKey)
 	if err := sender.ConnectLive(); err != nil {
