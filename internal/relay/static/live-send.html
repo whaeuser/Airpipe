@@ -237,7 +237,7 @@ function attachWS(){
   };
 
   ws.onclose=()=>{
-    if(phase==='sending'||phase==='negotiating'){
+    if(phase==='waiting'||phase==='select'||phase==='sending'||phase==='negotiating'){
       showError(t('js_closed_receiver',{phase}));
       return;
     }

@@ -178,7 +178,7 @@ ws.onclose=()=>{
     finalizeSessionTotals();
     return;
   }
-  if(phase==='negotiating'||phase==='receiving'){
+  if(phase==='joining'||phase==='waiting'||phase==='negotiating'||phase==='receiving'){
     showError(t('js_closed_sender',{phase}));
   }
 };
