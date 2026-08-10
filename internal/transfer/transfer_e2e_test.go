@@ -1,6 +1,7 @@
 package transfer_test
 
 import (
+	"bytes"
 	"encoding/binary"
 	"net/http"
 	"net/http/httptest"
@@ -229,6 +230,252 @@ func TestCLItoCLILargeFile(t *testing.T) {
 		if received[i] != content[i] {
 			t.Fatalf("byte mismatch at offset %d: got %d, want %d", i, received[i], content[i])
 		}
+	}
+}
+
+// TestResumeAfterMidTransferDisconnect simulates a receiver that dies partway
+// through a live p2p transfer, then verifies a second attempt with a resume
+// request picks up exactly where the first one left off and produces a
+// byte-identical file, without resending the already-acknowledged prefix.
+func TestResumeAfterMidTransferDisconnect(t *testing.T) {
+	relay := startTestRelay(t)
+	defer relay.Close()
+
+	relayURL := "ws" + relay.URL[4:]
+	token := "cli2cli-resume01"
+
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir := t.TempDir()
+	srcPath := filepath.Join(tmpDir, "big.bin")
+	content := make([]byte, 5*transfer.ChunkSize)
+	for i := range content {
+		content[i] = byte(i % 251)
+	}
+	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	destDir := filepath.Join(tmpDir, "received")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// --- Attempt 1: sender connects and waits first (matches real drop
+	// send/download ordering), receiver joins, transfer is interrupted after
+	// two whole chunks by forcibly closing the sender's transport mid-stream.
+	sender := transfer.NewSender(relayURL, token, key)
+	if err := sender.ConnectLive(); err != nil {
+		t.Fatalf("sender connect: %v", err)
+	}
+	waitDone := make(chan error, 1)
+	go func() { waitDone <- sender.WaitForPeer(5 * time.Second) }()
+	time.Sleep(50 * time.Millisecond) // let WaitForPeer's read loop start
+
+	recvDone := make(chan error, 1)
+	go func() {
+		receiver := transfer.NewReceiver(relayURL, token, key)
+		if err := receiver.ConnectLive(); err != nil {
+			recvDone <- err
+			return
+		}
+		defer receiver.Close()
+		_, err := receiver.ReceiveFile(destDir, nil)
+		recvDone <- err
+	}()
+
+	if err := <-waitDone; err != nil {
+		t.Fatalf("wait for peer: %v", err)
+	}
+
+	killed := false
+	sendErr := sender.SendFiles([]string{srcPath}, func(_ int, sent, total int64) {
+		if !killed && sent >= 2*transfer.ChunkSize {
+			killed = true
+			sender.CloseTransport() // simulate a dropped connection mid-file
+		}
+	})
+	sender.Close()
+	if sendErr == nil {
+		t.Fatal("expected send to fail after simulated mid-transfer disconnect")
+	}
+
+	if recvErr := <-recvDone; recvErr == nil {
+		t.Fatal("expected receiver to see an error after simulated mid-transfer disconnect")
+	}
+
+	partPath := filepath.Join(destDir, "big.bin.part")
+	partial, err := os.ReadFile(partPath)
+	if err != nil {
+		t.Fatalf("expected partial file at %s: %v", partPath, err)
+	}
+	if len(partial) < 2*transfer.ChunkSize {
+		t.Fatalf("partial file too small: got %d bytes, want at least %d", len(partial), 2*transfer.ChunkSize)
+	}
+	if !bytes.Equal(partial, content[:len(partial)]) {
+		t.Fatal("partial file content is not a correct prefix of the source")
+	}
+
+	// --- Attempt 2: resume. A fresh sender/receiver pair, same token/key,
+	// receiver requests resume from its on-disk .part file.
+	candidate, err := transfer.FindResumeCandidate(destDir)
+	if err != nil {
+		t.Fatalf("FindResumeCandidate: %v", err)
+	}
+	if candidate == nil {
+		t.Fatal("expected a resume candidate from the interrupted transfer")
+	}
+	if candidate.Filename != "big.bin" {
+		t.Fatalf("resume candidate filename = %q, want big.bin", candidate.Filename)
+	}
+
+	sender2 := transfer.NewSender(relayURL, token, key)
+	if err := sender2.ConnectLive(); err != nil {
+		t.Fatalf("sender2 connect: %v", err)
+	}
+	defer sender2.Close()
+	waitDone2 := make(chan error, 1)
+	go func() { waitDone2 <- sender2.WaitForPeer(5 * time.Second) }()
+	time.Sleep(50 * time.Millisecond)
+
+	recvDone2 := make(chan error, 1)
+	recvPathCh := make(chan string, 1)
+	go func() {
+		receiver := transfer.NewReceiver(relayURL, token, key)
+		receiver.SetResumeRequest(candidate)
+		if err := receiver.ConnectLive(); err != nil {
+			recvDone2 <- err
+			return
+		}
+		defer receiver.Close()
+		path, err := receiver.ReceiveFile(destDir, nil)
+		recvPathCh <- path
+		recvDone2 <- err
+	}()
+
+	if err := <-waitDone2; err != nil {
+		t.Fatalf("wait for peer (resume): %v", err)
+	}
+
+	var bytesSentThisAttempt int64
+	if err := sender2.SendFiles([]string{srcPath}, func(_ int, sent, total int64) {
+		bytesSentThisAttempt = sent
+	}); err != nil {
+		t.Fatalf("resumed send failed: %v", err)
+	}
+
+	if err := <-recvDone2; err != nil {
+		t.Fatalf("resumed receive failed: %v", err)
+	}
+	recvPath := <-recvPathCh
+
+	// The sender's own progress accounting starts counting from the resume
+	// offset (bytesSent is seeded with it), so the final reported total sent
+	// should equal the file size even though only the tail was retransmitted.
+	if bytesSentThisAttempt != int64(len(content)) {
+		t.Fatalf("expected final bytesSent to report %d, got %d", len(content), bytesSentThisAttempt)
+	}
+
+	final, err := os.ReadFile(recvPath)
+	if err != nil {
+		t.Fatalf("read final file: %v", err)
+	}
+	if !bytes.Equal(final, content) {
+		t.Fatal("final file content mismatch after resume")
+	}
+	if _, err := os.Stat(partPath); !os.IsNotExist(err) {
+		t.Fatalf("expected .part file to be gone after successful resume, stat err: %v", err)
+	}
+}
+
+// TestResumeStalePartFallsBackToFreshTransfer ensures an unrelated/corrupt
+// .part file (wrong prefix hash) is discarded rather than corrupting the
+// final output — resume only kicks in when the sender's prefix hash check
+// actually matches.
+func TestResumeStalePartFallsBackToFreshTransfer(t *testing.T) {
+	relay := startTestRelay(t)
+	defer relay.Close()
+
+	relayURL := "ws" + relay.URL[4:]
+	token := "cli2cli-resume02"
+
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir := t.TempDir()
+	srcPath := filepath.Join(tmpDir, "doc.bin")
+	content := make([]byte, 3*transfer.ChunkSize)
+	for i := range content {
+		content[i] = byte((i * 7) % 251)
+	}
+	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	destDir := filepath.Join(tmpDir, "received")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Plant a stale, unrelated .part file with garbage content at exactly one
+	// chunk in size, then claim (falsely) that its hash matches.
+	stalePart := filepath.Join(destDir, "doc.bin.part")
+	garbage := bytes.Repeat([]byte{0xAA}, transfer.ChunkSize)
+	if err := os.WriteFile(stalePart, garbage, 0644); err != nil {
+		t.Fatal(err)
+	}
+	fakeCandidate := &transfer.ResumeRequest{
+		Filename:   "doc.bin",
+		Offset:     transfer.ChunkSize,
+		PrefixHash: "not-the-real-hash",
+	}
+
+	sender := transfer.NewSender(relayURL, token, key)
+	if err := sender.ConnectLive(); err != nil {
+		t.Fatalf("sender connect: %v", err)
+	}
+	defer sender.Close()
+	waitDone := make(chan error, 1)
+	go func() { waitDone <- sender.WaitForPeer(5 * time.Second) }()
+	time.Sleep(50 * time.Millisecond)
+
+	recvDone := make(chan error, 1)
+	recvPathCh := make(chan string, 1)
+	go func() {
+		receiver := transfer.NewReceiver(relayURL, token, key)
+		receiver.SetResumeRequest(fakeCandidate)
+		if err := receiver.ConnectLive(); err != nil {
+			recvDone <- err
+			return
+		}
+		defer receiver.Close()
+		path, err := receiver.ReceiveFile(destDir, nil)
+		recvPathCh <- path
+		recvDone <- err
+	}()
+
+	if err := <-waitDone; err != nil {
+		t.Fatalf("wait for peer: %v", err)
+	}
+	if err := sender.SendFiles([]string{srcPath}, nil); err != nil {
+		t.Fatalf("send failed: %v", err)
+	}
+	if err := <-recvDone; err != nil {
+		t.Fatalf("receive failed: %v", err)
+	}
+	recvPath := <-recvPathCh
+
+	final, err := os.ReadFile(recvPath)
+	if err != nil {
+		t.Fatalf("read final file: %v", err)
+	}
+	if !bytes.Equal(final, content) {
+		t.Fatal("expected a full, correct fresh transfer when the resume prefix hash doesn't match")
 	}
 }
 

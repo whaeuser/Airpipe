@@ -142,6 +142,71 @@ func TestNewVersionMessage(t *testing.T) {
 	}
 }
 
+func TestNewResumeRequestMessageRoundtrip(t *testing.T) {
+	msg, err := NewResumeRequestMessage("photo.jpg", 128*1024, "deadbeef")
+	if err != nil {
+		t.Fatalf("NewResumeRequestMessage failed: %v", err)
+	}
+	if msg.Type != MsgTypeResumeRequest {
+		t.Fatalf("expected MsgTypeResumeRequest, got %d", msg.Type)
+	}
+
+	encoded := EncodeMessage(msg)
+	decoded, err := DecodeMessage(encoded)
+	if err != nil {
+		t.Fatalf("roundtrip decode failed: %v", err)
+	}
+
+	req, err := ParseResumeRequest(decoded.Payload)
+	if err != nil {
+		t.Fatalf("ParseResumeRequest failed: %v", err)
+	}
+	if req.Filename != "photo.jpg" || req.Offset != 128*1024 || req.PrefixHash != "deadbeef" {
+		t.Fatalf("resume request mismatch: %+v", req)
+	}
+}
+
+func TestNewMetadataMessageWithResume(t *testing.T) {
+	msg, err := NewMetadataMessageWithResume("photo.jpg", 4096, 4, 2048)
+	if err != nil {
+		t.Fatalf("NewMetadataMessageWithResume failed: %v", err)
+	}
+	meta, err := ParseMetadata(msg.Payload)
+	if err != nil {
+		t.Fatalf("ParseMetadata failed: %v", err)
+	}
+	if meta.ResumeOffset != 2048 {
+		t.Fatalf("expected ResumeOffset 2048, got %d", meta.ResumeOffset)
+	}
+}
+
+// A pre-v4 sender never sets resume_offset; decoding its Metadata JSON must
+// default ResumeOffset to 0 rather than erroring, so old<->new interop degrades
+// to "just start over" instead of breaking.
+func TestParseMetadataBackwardCompatMissingResumeOffset(t *testing.T) {
+	oldShapeJSON := []byte(`{"filename":"photo.jpg","size":1024,"chunks":1}`)
+	meta, err := ParseMetadata(oldShapeJSON)
+	if err != nil {
+		t.Fatalf("ParseMetadata failed on old-shape JSON: %v", err)
+	}
+	if meta.ResumeOffset != 0 {
+		t.Fatalf("expected ResumeOffset 0 for old-shape JSON, got %d", meta.ResumeOffset)
+	}
+	if meta.Filename != "photo.jpg" || meta.Size != 1024 || meta.Chunks != 1 {
+		t.Fatalf("metadata mismatch: %+v", meta)
+	}
+}
+
+func TestNewPeerJoinMessageCarriesVersion(t *testing.T) {
+	msg := NewPeerJoinMessage()
+	if msg.Type != MsgTypePeerJoin {
+		t.Fatalf("expected MsgTypePeerJoin, got %d", msg.Type)
+	}
+	if len(msg.Payload) != 1 || msg.Payload[0] != ProtocolVersion {
+		t.Fatalf("expected payload [%d], got %v", ProtocolVersion, msg.Payload)
+	}
+}
+
 func TestEncodeMessageHeaderFormat(t *testing.T) {
 	payload := []byte("test")
 	msg := Message{Type: MsgTypeChunk, Payload: payload}

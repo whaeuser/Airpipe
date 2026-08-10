@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/whaeuser/drop/internal/archive"
 	"github.com/whaeuser/drop/internal/crypto"
+	"github.com/whaeuser/drop/internal/discovery"
 	"github.com/whaeuser/drop/internal/mailbox"
 	"github.com/whaeuser/drop/internal/passphrase"
 	"github.com/whaeuser/drop/internal/transfer"
@@ -21,6 +23,7 @@ func cmdSend(relay string, args []string) error {
 	sendFS := newFlagSet("send")
 	mode := sendFS.String("mode", "", "p2p | mailbox (default: prompt)")
 	stayOpen := sendFS.Bool("stay-open", false, "after each p2p batch, prompt for more files (requires receiver --stay-open)")
+	resumePhrase := sendFS.String("resume-passphrase", "", "reuse this passphrase instead of generating a new one, so a retry after a dropped p2p transfer reopens the same room (pair with `drop download --resume`)")
 	if err := sendFS.Parse(args); err != nil {
 		return err
 	}
@@ -90,6 +93,9 @@ func cmdSend(relay string, args []string) error {
 	}
 
 	phrase := passphrase.Generate()
+	if *resumePhrase != "" {
+		phrase = passphrase.Normalize(*resumePhrase)
+	}
 	derivedToken := passphrase.DeriveToken(phrase)
 	derivedKeyArr := passphrase.DeriveKey(phrase)
 	derivedKey := derivedKeyArr[:]
@@ -219,12 +225,36 @@ func sendMailboxNative(httpRelay string, paths []string, phrase, derivedToken st
 	return nil
 }
 
+// advertiseOnLAN broadcasts an mDNS record so `drop discover` can find this
+// sender without the passphrase being typed anywhere. It never carries the
+// passphrase or key (see internal/discovery) and never affects the send:
+// any failure (blocked multicast, disabled interface) is just noted on
+// stderr, since drop download <passphrase> keeps working either way.
+func advertiseOnLAN(ctx context.Context, paths []string, derivedToken string) {
+	label := filepath.Base(paths[0])
+	if len(paths) > 1 {
+		label = fmt.Sprintf("%d files", len(paths))
+	}
+	err := discovery.NewAdvertiser().Advertise(ctx, discovery.ServiceRecord{
+		Token:   derivedToken,
+		Label:   label,
+		Version: transfer.ProtocolVersion,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s(LAN discovery unavailable: %v)%s\n", colorDim, err, colorReset)
+	}
+}
+
 func sendP2P(wsRelay, httpRelay string, paths []string, phrase, derivedToken string, derivedKey []byte, stayOpen bool) error {
 	if len(paths) == 0 {
 		return fmt.Errorf("nothing to send")
 	}
 	displayPassphrase(phrase, httpRelay, derivedToken, derivedKey)
 	fmt.Printf("  %sWaiting for receiver to join...%s\n\n", colorDim, colorReset)
+
+	discCtx, discCancel := context.WithCancel(context.Background())
+	defer discCancel()
+	go advertiseOnLAN(discCtx, paths, derivedToken)
 
 	sender := transfer.NewSender(wsRelay, derivedToken, derivedKey)
 	if err := sender.ConnectLive(); err != nil {

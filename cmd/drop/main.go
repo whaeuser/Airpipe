@@ -52,10 +52,12 @@ func main() {
 		err = cmdReceive(*relay, dir, stayOpen)
 	case "download":
 		if len(args) < 2 {
-			fmt.Println("Usage: drop download [--stay-open] <WORD WORD WORD NN> [dir]")
+			fmt.Println("Usage: drop download [--stay-open] [--resume] <WORD WORD WORD NN> [dir]")
 			os.Exit(1)
 		}
 		err = cmdDownload(*relay, args[1:])
+	case "discover":
+		err = cmdDiscover(*relay, args[1:])
 	case "update":
 		err = cmdUpdate()
 	case "help", "--help", "-h":

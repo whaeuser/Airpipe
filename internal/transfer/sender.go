@@ -2,6 +2,8 @@ package transfer
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -24,12 +26,13 @@ const (
 )
 
 type Sender struct {
-	relayURL  string
-	token     string
-	key       []byte
-	conn      *websocket.Conn
-	peer      *p2p.Peer
-	transport senderTransport
+	relayURL      string
+	token         string
+	key           []byte
+	conn          *websocket.Conn
+	peer          *p2p.Peer
+	transport     senderTransport
+	pendingResume *ResumeRequest
 }
 
 func NewSender(relayURL, token string, key []byte) *Sender {
@@ -74,7 +77,21 @@ func (s *Sender) WaitForPeer(timeout time.Duration) error {
 		if err != nil {
 			return fmt.Errorf("waiting for peer: %w", err)
 		}
-		if msg.Type == MsgTypePeerJoin {
+		switch msg.Type {
+		case MsgTypeResumeRequest:
+			req, perr := ParseResumeRequest(msg.Payload)
+			if perr != nil {
+				return fmt.Errorf("parse resume request: %w", perr)
+			}
+			s.pendingResume = &req
+		case MsgTypePeerJoin:
+			if len(msg.Payload) == 0 || msg.Payload[0] != ProtocolVersion {
+				got := byte(0)
+				if len(msg.Payload) > 0 {
+					got = msg.Payload[0]
+				}
+				return fmt.Errorf("protocol version mismatch: got %d, expected %d (run `drop update`)", got, ProtocolVersion)
+			}
 			return nil
 		}
 	}
@@ -218,7 +235,26 @@ func (s *Sender) CloseTransport() {
 	}
 }
 
+// filePrefixHash returns the hex SHA-256 of the first n bytes of the file at path.
+func filePrefixHash(path string, n int64) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.CopyN(h, f, n); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
 func (s *Sender) streamFile(sendWire func([]byte) error, filePath string, progressFn func(sent, total int64)) error {
+	// Only the first file of a batch is eligible for resume; clear it here so
+	// later files in the same batch never see a stale request.
+	resume := s.pendingResume
+	s.pendingResume = nil
+
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -234,7 +270,17 @@ func (s *Sender) streamFile(sendWire func([]byte) error, filePath string, progre
 	fileSize := stat.Size()
 	totalChunks := int((fileSize + ChunkSize - 1) / ChunkSize)
 
-	metaMsg, err := NewMetadataMessage(filename, fileSize, totalChunks)
+	var resumeOffset int64
+	if resume != nil && resume.Filename == filename && resume.Offset > 0 &&
+		resume.Offset <= fileSize && resume.Offset%ChunkSize == 0 {
+		if hash, herr := filePrefixHash(filePath, resume.Offset); herr == nil && hash == resume.PrefixHash {
+			if _, serr := file.Seek(resume.Offset, io.SeekStart); serr == nil {
+				resumeOffset = resume.Offset
+			}
+		}
+	}
+
+	metaMsg, err := NewMetadataMessageWithResume(filename, fileSize, totalChunks, resumeOffset)
 	if err != nil {
 		return err
 	}
@@ -243,7 +289,10 @@ func (s *Sender) streamFile(sendWire func([]byte) error, filePath string, progre
 	}
 
 	buf := make([]byte, ChunkSize)
-	var bytesSent int64
+	bytesSent := resumeOffset
+	if resumeOffset > 0 && progressFn != nil {
+		progressFn(bytesSent, fileSize)
+	}
 	for {
 		n, readErr := file.Read(buf)
 		if n > 0 {

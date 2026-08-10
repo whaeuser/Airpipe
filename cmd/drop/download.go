@@ -14,8 +14,23 @@ import (
 	"github.com/whaeuser/drop/internal/transfer"
 )
 
+// parseResumeFlag pulls --resume out of a download-only arg list; it's
+// deliberately not folded into parseStayOpenFlags since `drop receive`
+// (browser pairing) doesn't support resume.
+func parseResumeFlag(args []string) (resume bool, rest []string) {
+	for _, a := range args {
+		if a == "--resume" {
+			resume = true
+			continue
+		}
+		rest = append(rest, a)
+	}
+	return resume, rest
+}
+
 func cmdDownload(relay string, args []string) error {
 	stayOpen, args := parseStayOpenFlags(args)
+	resume, args := parseResumeFlag(args)
 	// The last arg may be a destination dir rather than part of the passphrase.
 	destDir := "."
 	phraseArgs := args
@@ -53,6 +68,18 @@ func cmdDownload(relay string, args []string) error {
 		fmt.Printf("\r  %sNo mailbox transfer; opening direct connection...%s\n\n", colorDim, colorReset)
 		wsRelay := toWS(relay)
 		receiver := transfer.NewReceiver(wsRelay, derivedToken, derivedKey[:])
+		if resume {
+			candidate, err := transfer.FindResumeCandidate(destDir)
+			if err != nil {
+				return fmt.Errorf("checking for resumable transfer: %w", err)
+			}
+			if candidate != nil {
+				fmt.Printf("  %sResuming %s from %s%s\n", colorDim, candidate.Filename, fmtBytes(candidate.Offset), colorReset)
+				receiver.SetResumeRequest(candidate)
+			} else {
+				fmt.Printf("  %s--resume given but no resumable .part file found in %s; starting fresh%s\n", colorDim, destDir, colorReset)
+			}
+		}
 		if err := receiver.ConnectLive(); err != nil {
 			return fmt.Errorf("no transfer found for that passphrase. Either the link expired, the sender gave up, or the passphrase is wrong")
 		}

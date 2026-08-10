@@ -42,14 +42,56 @@ type msgReader func() (Message, error)
 var errSenderRestarted = errors.New("sender restarted")
 
 type Receiver struct {
-	relayURL string
-	token    string
-	key      []byte
-	conn     *websocket.Conn
+	relayURL  string
+	token     string
+	key       []byte
+	conn      *websocket.Conn
+	resumeReq *ResumeRequest
 }
 
 func NewReceiver(relayURL, token string, key []byte) *Receiver {
 	return &Receiver{relayURL: relayURL, token: token, key: key}
+}
+
+// SetResumeRequest arms ConnectLive to ask the sender to skip everything up
+// to req.Offset, because that many bytes are already on disk in a ".part"
+// file (see FindResumeCandidate). Pass nil for a normal, non-resumed receive.
+func (r *Receiver) SetResumeRequest(req *ResumeRequest) {
+	r.resumeReq = req
+}
+
+// FindResumeCandidate looks for a single "*.part" file in destDir left over
+// from an interrupted p2p receive. If found, it truncates the file down to
+// the nearest whole ChunkSize boundary (dropping any bytes from a torn
+// mid-chunk write) and returns a ResumeRequest describing it. Returns nil,
+// nil if there's nothing usable to resume (no ".part" file, more than one,
+// or less than one full chunk on disk).
+func FindResumeCandidate(destDir string) (*ResumeRequest, error) {
+	matches, err := filepath.Glob(filepath.Join(destDir, "*.part"))
+	if err != nil {
+		return nil, err
+	}
+	if len(matches) != 1 {
+		return nil, nil
+	}
+	partPath := matches[0]
+	stat, err := os.Stat(partPath)
+	if err != nil {
+		return nil, err
+	}
+	offset := (stat.Size() / ChunkSize) * ChunkSize
+	if offset <= 0 {
+		return nil, nil
+	}
+	if err := os.Truncate(partPath, offset); err != nil {
+		return nil, err
+	}
+	hash, err := filePrefixHash(partPath, offset)
+	if err != nil {
+		return nil, err
+	}
+	filename := strings.TrimSuffix(filepath.Base(partPath), ".part")
+	return &ResumeRequest{Filename: filename, Offset: offset, PrefixHash: hash}, nil
 }
 
 // open the room and ping that we're here
@@ -60,6 +102,15 @@ func (r *Receiver) ConnectLive() error {
 		return fmt.Errorf("failed to connect to relay: %w", err)
 	}
 	r.conn = conn
+	if r.resumeReq != nil {
+		resumeMsg, err := NewResumeRequestMessage(r.resumeReq.Filename, r.resumeReq.Offset, r.resumeReq.PrefixHash)
+		if err != nil {
+			return fmt.Errorf("build resume request: %w", err)
+		}
+		if err := writeSignalMsg(r.conn, r.key, resumeMsg); err != nil {
+			return fmt.Errorf("failed to send resume request: %w", err)
+		}
+	}
 	if err := writeSignalMsg(r.conn, r.key, NewPeerJoinMessage()); err != nil {
 		return fmt.Errorf("failed to announce peer-join: %w", err)
 	}
@@ -408,7 +459,7 @@ func (r *Receiver) recvFile(read msgReader, destDir string, progressFn func(rece
 	var metadata Metadata
 	var file *os.File
 	var bytesReceived int64
-	var destPath string
+	var destPath, partPath string
 
 	defer func() {
 		if file != nil {
@@ -429,11 +480,29 @@ func (r *Receiver) recvFile(read msgReader, destDir string, progressFn func(rece
 			}
 			metadata = meta
 			destPath = uniquePath(filepath.Join(destDir, safeName))
-			f, err := os.Create(destPath)
-			if err != nil {
-				return "", false, fmt.Errorf("create file: %w", err)
+			partPath = destPath + ".part"
+
+			resuming := meta.ResumeOffset > 0 && r.resumeReq != nil &&
+				r.resumeReq.Filename == safeName && r.resumeReq.Offset == meta.ResumeOffset
+			if resuming {
+				f, err := os.OpenFile(partPath, os.O_WRONLY|os.O_APPEND, 0644)
+				if err != nil {
+					return "", false, fmt.Errorf("reopen partial file: %w", err)
+				}
+				file = f
+				bytesReceived = meta.ResumeOffset
+			} else {
+				os.Remove(partPath)
+				f, err := os.Create(partPath)
+				if err != nil {
+					return "", false, fmt.Errorf("create file: %w", err)
+				}
+				file = f
+				bytesReceived = 0
 			}
-			file = f
+			if progressFn != nil {
+				progressFn(bytesReceived, metadata.Size)
+			}
 		case MsgTypeChunk:
 			if file == nil {
 				return "", false, fmt.Errorf("received chunk before metadata")
@@ -447,6 +516,13 @@ func (r *Receiver) recvFile(read msgReader, destDir string, progressFn func(rece
 				progressFn(bytesReceived, metadata.Size)
 			}
 		case MsgTypeComplete:
+			if file != nil {
+				file.Close()
+				file = nil
+			}
+			if err := os.Rename(partPath, destPath); err != nil {
+				return "", false, fmt.Errorf("finalize file: %w", err)
+			}
 			return destPath, true, nil
 		case MsgTypeError:
 			return "", false, fmt.Errorf("sender error: %s", string(msg.Payload))
@@ -456,8 +532,8 @@ func (r *Receiver) recvFile(read msgReader, destDir string, progressFn func(rece
 			if file != nil {
 				file.Close()
 				file = nil
-				os.Remove(destPath)
-				fmt.Fprintf(os.Stderr, "sender restarted mid-transfer, partial file discarded: %s\n", destPath)
+				os.Remove(partPath)
+				fmt.Fprintf(os.Stderr, "sender restarted mid-transfer, partial file discarded: %s\n", partPath)
 			}
 			if err := r.reHandshake(msg); err != nil {
 				return "", false, err

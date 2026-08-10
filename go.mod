@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/gorilla/websocket v1.5.1
+	github.com/hashicorp/mdns v1.0.7
 	github.com/pion/webrtc/v4 v4.2.11
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.48.0
@@ -12,6 +13,7 @@ require (
 
 require (
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/miekg/dns v1.1.72 // indirect
 	github.com/pion/datachannel v1.6.0 // indirect
 	github.com/pion/dtls/v3 v3.1.2 // indirect
 	github.com/pion/ice/v4 v4.2.2 // indirect
@@ -28,6 +30,9 @@ require (
 	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/pion/turn/v4 v4.1.4 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
+	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/tools v0.40.0 // indirect
 )
