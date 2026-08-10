@@ -109,6 +109,13 @@ func (mdnsBrowser) Browse(ctx context.Context, timeout time.Duration) ([]Service
 		Domain:  strings.TrimSuffix(domain, "."),
 		Timeout: timeout,
 		Entries: entriesCh,
+		// IPv6 multicast is routinely broken on client machines (VPNs, some
+		// routers/Docker networks) in ways IPv4 isn't. The mdns library's
+		// sendQuery aborts the whole query on the first send error, so a
+		// single "no route to host" on the IPv6 send discards an already
+		// in-flight, otherwise-working IPv4 query. IPv4 alone covers the
+		// LAN-discovery use case this package exists for.
+		DisableIPv6: true,
 	})
 	close(entriesCh)
 	<-done
